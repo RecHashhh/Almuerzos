@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ripconciv — Cocina</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<style>
+  :root {
+    --brand:#E8500A; --brand-dark:#BF3D04; --brand-light:#FF7040;
+    --bg:#F7F4F0; --surface:#FFFFFF; --card:#FFFFFF;
+    --border:#E2DDD8; --text:#1A1714; --muted:#8C857D;
+    --success:#1A9E5C; --info:#2563EB;
+    --shadow: 0 2px 16px rgba(26,23,20,0.07);
+    --shadow-lg: 0 8px 32px rgba(26,23,20,0.12);
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Plus Jakarta Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+  /* TOP */
+  .topbar {
+    background: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 60%, var(--brand-light) 100%);
+    padding:20px 24px 24px;
+    position:relative; overflow:hidden;
+  }
+  .topbar::after { content:'🍽️'; position:absolute; right:-10px; top:-10px; font-size:8rem; opacity:0.08; transform:rotate(-10deg); }
+  .topbar-inner { max-width:640px; margin:0 auto; }
+  .topbar-row { display:flex; align-items:flex-start; justify-content:space-between; }
+  .topbar h1 { font-family:'Syne',sans-serif; font-size:1.6rem; font-weight:800; color:#fff; margin-bottom:4px; }
+  .topbar-sub { color:rgba(255,255,255,0.75); font-size:0.84rem; }
+  .btn-logout {
+    background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.3);
+    color:#fff; padding:7px 14px; border-radius:8px; font-size:0.76rem;
+    font-family:'Plus Jakarta Sans',sans-serif; cursor:pointer; transition:all 0.2s;
+    white-space:nowrap;
+  }
+  .btn-logout:hover { background:rgba(255,255,255,0.3); }
+
+  /* Live indicator */
+  .live-bar {
+    background:#fff; border-bottom:1px solid var(--border);
+    padding:10px 24px;
+    display:flex; align-items:center; justify-content:space-between;
+    font-size:0.78rem; color:var(--muted);
+  }
+  .live-bar-inner { max-width:640px; margin:0 auto; width:100%; display:flex; align-items:center; justify-content:space-between; }
+  .live-dot {
+    width:8px; height:8px; border-radius:50%; background:var(--success);
+    display:inline-block; margin-right:6px;
+    animation:pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+  .countdown { font-weight:600; color:var(--brand); }
+
+  /* CONTENT */
+  .content { max-width:640px; margin:0 auto; padding:24px 20px; }
+
+  /* BIG NUMBERS */
+  .totales-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:24px; }
+  .total-card {
+    background:var(--card); border:1px solid var(--border); border-radius:20px;
+    padding:24px 20px; text-align:center;
+    box-shadow:var(--shadow);
+    transition: transform 0.2s;
+  }
+  .total-card:active { transform:scale(0.98); }
+  .total-num {
+    font-family:'Syne',sans-serif; font-size:4rem; font-weight:800; line-height:1; margin-bottom:8px;
+    transition: all 0.3s ease;
+  }
+  .total-card.completo .total-num { color:var(--brand); }
+  .total-card.segundo .total-num { color:var(--info); }
+  .total-icon { font-size:1.6rem; margin-bottom:8px; }
+  .total-label { font-size:0.78rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
+
+  /* GRAND TOTAL */
+  .grand-total {
+    background: linear-gradient(135deg, var(--brand-dark), var(--brand));
+    border-radius:16px; padding:18px 20px;
+    display:flex; align-items:center; justify-content:space-between;
+    margin-bottom:24px; box-shadow:0 6px 20px rgba(232,80,10,0.25);
+  }
+  .grand-total-label { color:rgba(255,255,255,0.8); font-size:0.82rem; font-weight:600; }
+  .grand-total-num { font-family:'Syne',sans-serif; font-size:2rem; font-weight:800; color:#fff; }
+  .grand-total-sub { color:rgba(255,255,255,0.6); font-size:0.72rem; }
+
+  /* LISTS */
+  .list-section { background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden; margin-bottom:16px; box-shadow:var(--shadow); }
+  .list-header {
+    padding:14px 18px; border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between;
+    background: #FAFAF9;
+  }
+  .list-header-left { display:flex; align-items:center; gap:10px; }
+  .list-header-icon { font-size:1.2rem; }
+  .list-header-title { font-family:'Syne',sans-serif; font-size:0.9rem; font-weight:700; }
+  .list-count {
+    padding:4px 12px; border-radius:20px; font-size:0.76rem; font-weight:700;
+  }
+  .count-completo { background:rgba(232,80,10,0.12); color:var(--brand-dark); }
+  .count-segundo { background:rgba(37,99,235,0.12); color:var(--info); }
+
+  .list-item {
+    display:flex; align-items:center;
+    padding:12px 18px; border-bottom:1px solid rgba(226,221,216,0.6);
+    font-size:0.86rem; transition:background 0.15s;
+  }
+  .list-item:last-child { border-bottom:none; }
+  .list-item:hover { background:#FAFAF9; }
+  .list-num {
+    width:26px; height:26px; border-radius:8px;
+    background:var(--bg); display:flex; align-items:center; justify-content:center;
+    font-size:0.7rem; font-weight:700; color:var(--muted); margin-right:12px; flex-shrink:0;
+  }
+  .list-name { flex:1; font-weight:500; }
+  .list-hora { font-size:0.74rem; color:var(--muted); }
+
+  .list-empty { padding:24px; text-align:center; color:var(--muted); font-size:0.84rem; }
+
+  /* ACTIONS */
+  .actions { display:grid; gap:10px; margin-top:8px; }
+  .btn-whatsapp {
+    display:flex; align-items:center; justify-content:center; gap:10px;
+    padding:16px; background:linear-gradient(135deg, #128C7E, #25D366);
+    color:#fff; border:none; border-radius:14px;
+    font-family:'Syne',sans-serif; font-size:0.95rem; font-weight:700;
+    cursor:pointer; transition:all 0.2s;
+    box-shadow:0 6px 18px rgba(37,211,102,0.3);
+  }
+  .btn-whatsapp:hover { transform:translateY(-2px); box-shadow:0 10px 24px rgba(37,211,102,0.4); }
+  .btn-refresh {
+    display:flex; align-items:center; justify-content:center; gap:8px;
+    padding:13px; background:var(--card); border:1.5px solid var(--border);
+    border-radius:14px; font-family:'Plus Jakarta Sans',sans-serif; font-size:0.86rem;
+    font-weight:600; color:var(--text); cursor:pointer; transition:all 0.2s;
+  }
+  .btn-refresh:hover { border-color:var(--brand); color:var(--brand); }
+
+  /* New item flash animation */
+  @keyframes flashNew {
+    from { background:#FFF4F0; }
+    to { background:transparent; }
+  }
+  .list-item.new { animation:flashNew 2s ease; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-inner">
+    <div class="topbar-row">
+      <div>
+        <h1>🍽️ Almuerzos del Día</h1>
+        <div class="topbar-sub" id="fecha-display">Cargando...</div>
+      </div>
+      <button class="btn-logout" onclick="logout()">Salir</button>
+    </div>
+  </div>
+</div>
+
+<div class="live-bar">
+  <div class="live-bar-inner">
+    <span><span class="live-dot"></span>Actualizando en tiempo real</span>
+    <span>Próxima actualización: <span class="countdown" id="countdown">30s</span></span>
+  </div>
+</div>
+
+<div class="content">
+
+  <!-- TOTALES -->
+  <div class="totales-grid">
+    <div class="total-card completo">
+      <div class="total-icon">🍱</div>
+      <div class="total-num" id="num-completo">0</div>
+      <div class="total-label">Almuerzo<br>Completo</div>
+    </div>
+    <div class="total-card segundo">
+      <div class="total-icon">🍛</div>
+      <div class="total-num" id="num-segundo">0</div>
+      <div class="total-label">Solo<br>Segundo</div>
+    </div>
+  </div>
+
+  <div class="grand-total">
+    <div>
+      <div class="grand-total-label">Total registrados hoy</div>
+      <div class="grand-total-sub" id="grand-sub">de 37 empleados</div>
+    </div>
+    <div class="grand-total-num" id="num-total">0</div>
+  </div>
+
+  <!-- LISTA COMPLETOS -->
+  <div class="list-section">
+    <div class="list-header">
+      <div class="list-header-left">
+        <span class="list-header-icon">🍱</span>
+        <span class="list-header-title">Almuerzo Completo</span>
+      </div>
+      <span class="list-count count-completo" id="badge-completo">0 personas</span>
+    </div>
+    <div id="lista-completo"><div class="list-empty">Sin registros aún</div></div>
+  </div>
+
+  <!-- LISTA SEGUNDOS -->
+  <div class="list-section">
+    <div class="list-header">
+      <div class="list-header-left">
+        <span class="list-header-icon">🍛</span>
+        <span class="list-header-title">Solo Segundo</span>
+      </div>
+      <span class="list-count count-segundo" id="badge-segundo">0 personas</span>
+    </div>
+    <div id="lista-segundo"><div class="list-empty">Sin registros aún</div></div>
+  </div>
+
+  <!-- ACCIONES -->
+  <div class="actions">
+    <button class="btn-whatsapp" onclick="enviarWhatsApp()">
+      💬 Enviar resumen por WhatsApp
+    </button>
+    <button class="btn-refresh" onclick="cargar(true)">
+      🔄 Actualizar ahora
+    </button>
+  </div>
+
+</div>
+
+<script>
+const { createClient } = supabase;
+const db = createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
+
+if (!requireAuth('cocina')) { /* redirect handled */ }
+
+let lastData = [];
+let countdownVal = CONFIG.refreshInterval / 1000;
+let countdownTimer = null;
+let refreshTimer = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('fecha-display').textContent = fechaDisplay(fechaHoy());
+  cargar(false);
+  iniciarAutoRefresh();
+});
+
+function logout() { clearSession(); window.location.href = 'login.html'; }
+
+// ── CARGA DATOS ──
+async function cargar(flash = false) {
+  const hoy = fechaHoy();
+  const { data } = await db.from('almuerzos').select('*').eq('fecha', hoy).order('hora');
+  const rows = data || [];
+
+  const completos = rows.filter(r => r.tipo === 'completo');
+  const segundos  = rows.filter(r => r.tipo === 'segundo');
+
+  // Detectar nuevos registros para animación
+  const prevIds = new Set(lastData.map(r => r.id));
+  const newIds  = new Set(rows.filter(r => !prevIds.has(r.id)).map(r => r.id));
+  lastData = rows;
+
+  // Actualizar números
+  animateNumber('num-completo', completos.length);
+  animateNumber('num-segundo',  segundos.length);
+  animateNumber('num-total',    rows.length);
+
+  document.getElementById('badge-completo').textContent = `${completos.length} persona${completos.length !== 1 ? 's' : ''}`;
+  document.getElementById('badge-segundo').textContent  = `${segundos.length} persona${segundos.length !== 1 ? 's' : ''}`;
+  document.getElementById('grand-sub').textContent = `de 37 empleados (${Math.round(rows.length/37*100)}%)`;
+
+  renderLista(completos, 'lista-completo', newIds);
+  renderLista(segundos,  'lista-segundo',  newIds);
+}
+
+function renderLista(items, containerId, newIds) {
+  const el = document.getElementById(containerId);
+  if (items.length === 0) {
+    el.innerHTML = '<div class="list-empty">Sin registros aún</div>';
+    return;
+  }
+  el.innerHTML = items.map((r, i) => `
+    <div class="list-item ${newIds.has(r.id) ? 'new' : ''}">
+      <div class="list-num">${i+1}</div>
+      <div class="list-name">${r.empleado}</div>
+      <div class="list-hora">${horaDisplay(r.hora)}</div>
+    </div>
+  `).join('');
+}
+
+function animateNumber(id, target) {
+  const el = document.getElementById(id);
+  const current = parseInt(el.textContent) || 0;
+  if (current === target) return;
+  el.textContent = target;
+  el.style.transform = 'scale(1.15)';
+  el.style.color = target > current ? 'var(--success)' : undefined;
+  setTimeout(() => {
+    el.style.transform = '';
+    // Restore original color after animation
+    setTimeout(() => { el.style.color = ''; }, 300);
+  }, 300);
+}
+
+// ── AUTO REFRESH ──
+function iniciarAutoRefresh() {
+  clearInterval(refreshTimer);
+  clearInterval(countdownTimer);
+  countdownVal = CONFIG.refreshInterval / 1000;
+
+  countdownTimer = setInterval(() => {
+    countdownVal--;
+    document.getElementById('countdown').textContent = countdownVal + 's';
+    if (countdownVal <= 0) {
+      countdownVal = CONFIG.refreshInterval / 1000;
+      cargar(false);
+    }
+  }, 1000);
+}
+
+// ── WHATSAPP ──
+async function enviarWhatsApp() {
+  const hoy = fechaHoy();
+  const { data } = await db.from('almuerzos').select('*').eq('fecha', hoy).order('empleado');
+  const rows = data || [];
+
+  const completos = rows.filter(r => r.tipo === 'completo');
+  const segundos  = rows.filter(r => r.tipo === 'segundo');
+
+  let msg = `🏗️ *RIPCONCIV — Almuerzos*\n`;
+  msg += `📅 ${fechaDisplay(hoy)}\n\n`;
+  msg += `📊 *RESUMEN DEL DÍA:*\n`;
+  msg += `🍱 Almuerzo Completo: *${completos.length}*\n`;
+  msg += `🍛 Solo Segundo: *${segundos.length}*\n`;
+  msg += `👥 Total: *${rows.length} personas*\n\n`;
+
+  if (completos.length > 0) {
+    msg += `─────────────────\n`;
+    msg += `🍱 *ALMUERZO COMPLETO (${completos.length}):*\n`;
+    completos.forEach((r, i) => { msg += `${i+1}. ${r.empleado}\n`; });
+    msg += '\n';
+  }
+  if (segundos.length > 0) {
+    msg += `─────────────────\n`;
+    msg += `🍛 *SOLO SEGUNDO (${segundos.length}):*\n`;
+    segundos.forEach((r, i) => { msg += `${i+1}. ${r.empleado}\n`; });
+  }
+
+  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+}
+</script>
+</body>
+</html>

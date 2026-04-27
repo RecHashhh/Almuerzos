@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ripconciv — Administración</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<style>
+  :root {
+    --brand:#E8500A; --brand-dark:#BF3D04; --brand-light:#FF7040;
+    --bg:#0F0E0D; --surface:#1C1A18; --card:#242220;
+    --border:#333130; --text:#F5F3F0; --muted:#8C857D;
+    --success:#1DB954; --info:#3B82F6; --warning:#F59E0B;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:'Plus Jakarta Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+
+  /* NAV */
+  .topbar {
+    height:60px; background:var(--surface); border-bottom:1px solid var(--border);
+    display:flex; align-items:center; justify-content:space-between; padding:0 24px;
+    position:sticky; top:0; z-index:50;
+  }
+  .topbar-left { display:flex; align-items:center; gap:12px; }
+  .topbar-logo { font-family:'Syne',sans-serif; font-size:1rem; font-weight:800; }
+  .topbar-logo span { color:var(--brand-light); }
+  .topbar-badge {
+    background:rgba(232,80,10,0.15); border:1px solid rgba(232,80,10,0.3);
+    color:var(--brand-light); padding:3px 10px; border-radius:20px; font-size:0.72rem; font-weight:600;
+  }
+  .topbar-right { display:flex; align-items:center; gap:12px; }
+  .btn-logout {
+    padding:7px 14px; background:transparent; border:1px solid var(--border);
+    border-radius:8px; color:var(--muted); font-size:0.78rem; cursor:pointer;
+    font-family:'Plus Jakarta Sans',sans-serif; transition:all 0.2s;
+  }
+  .btn-logout:hover { border-color:var(--brand); color:var(--brand-light); }
+
+  /* LAYOUT */
+  .main { max-width:1100px; margin:0 auto; padding:32px 24px; }
+
+  /* PAGE HEADER */
+  .page-head { margin-bottom:28px; }
+  .page-head h1 { font-family:'Syne',sans-serif; font-size:1.8rem; font-weight:800; margin-bottom:4px; }
+  .page-head p { color:var(--muted); font-size:0.88rem; }
+
+  /* TABS */
+  .tabs { display:flex; gap:4px; margin-bottom:28px; background:var(--surface); padding:6px; border-radius:14px; width:fit-content; }
+  .tab {
+    padding:9px 20px; border-radius:10px; border:none; background:transparent;
+    color:var(--muted); font-family:'Plus Jakarta Sans',sans-serif; font-size:0.84rem;
+    font-weight:600; cursor:pointer; transition:all 0.2s;
+  }
+  .tab.active { background:var(--card); color:var(--text); box-shadow:0 2px 8px rgba(0,0,0,0.3); }
+
+  .tab-panel { display:none; }
+  .tab-panel.active { display:block; }
+
+  /* STATS */
+  .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:28px; }
+  .stat {
+    background:var(--card); border:1px solid var(--border); border-radius:16px; padding:20px;
+  }
+  .stat.accent { border-color:rgba(232,80,10,0.35); background:rgba(232,80,10,0.07); }
+  .stat-label { font-size:0.72rem; text-transform:uppercase; letter-spacing:0.07em; color:var(--muted); margin-bottom:10px; }
+  .stat-value { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; line-height:1; }
+  .stat.accent .stat-value { color:var(--brand-light); }
+  .stat-sub { font-size:0.75rem; color:var(--muted); margin-top:6px; }
+
+  /* TOOLBAR */
+  .toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:18px; }
+  .date-input {
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    padding:9px 14px; color:var(--text); font-family:'Plus Jakarta Sans',sans-serif;
+    font-size:0.84rem; outline:none; transition:border-color 0.2s;
+  }
+  .date-input:focus { border-color:var(--brand); }
+  .btn-sm {
+    padding:9px 16px; border-radius:10px; border:1px solid var(--border);
+    background:var(--card); color:var(--text); font-family:'Plus Jakarta Sans',sans-serif;
+    font-size:0.82rem; font-weight:600; cursor:pointer; transition:all 0.2s; white-space:nowrap;
+  }
+  .btn-sm:hover { border-color:var(--brand); color:var(--brand-light); }
+  .btn-export {
+    padding:9px 16px; border-radius:10px;
+    border:1px solid rgba(29,185,84,0.35); background:rgba(29,185,84,0.08);
+    color:var(--success); font-family:'Plus Jakarta Sans',sans-serif;
+    font-size:0.82rem; font-weight:600; cursor:pointer; transition:all 0.2s; white-space:nowrap;
+  }
+  .btn-export:hover { background:rgba(29,185,84,0.15); }
+  .toolbar-spacer { flex:1; }
+
+  /* TABLE */
+  .table-card { background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
+  .table-head-bar {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:16px 20px; border-bottom:1px solid var(--border);
+  }
+  .table-head-bar h3 { font-family:'Syne',sans-serif; font-size:0.92rem; font-weight:700; }
+  .badge {
+    padding:3px 10px; border-radius:20px; font-size:0.72rem; font-weight:700;
+  }
+  .badge-orange { background:rgba(232,80,10,0.2); color:var(--brand-light); }
+  .table-scroll { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; }
+  th {
+    padding:11px 18px; text-align:left; font-size:0.7rem; text-transform:uppercase;
+    letter-spacing:0.07em; color:var(--muted); background:var(--surface);
+    border-bottom:1px solid var(--border);
+  }
+  td { padding:13px 18px; font-size:0.86rem; border-bottom:1px solid rgba(51,49,48,0.5); }
+  tr:last-child td { border-bottom:none; }
+  tr:hover td { background:rgba(255,255,255,0.015); }
+
+  .pill {
+    display:inline-flex; align-items:center; gap:5px;
+    padding:4px 10px; border-radius:20px; font-size:0.76rem; font-weight:600;
+  }
+  .pill-completo { background:rgba(232,80,10,0.15); color:var(--brand-light); }
+  .pill-segundo { background:rgba(59,130,246,0.15); color:#93C5FD; }
+
+  .empty { text-align:center; padding:52px 20px; color:var(--muted); }
+  .empty .empty-ico { font-size:2.5rem; margin-bottom:12px; }
+
+  /* HISTORY TAB */
+  .month-picker { display:flex; gap:10px; align-items:center; margin-bottom:20px; }
+  .month-input {
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    padding:9px 14px; color:var(--text); font-family:'Plus Jakarta Sans',sans-serif;
+    font-size:0.84rem; outline:none;
+  }
+  .month-input:focus { border-color:var(--brand); }
+
+  /* Heatmap / summary table */
+  .summary-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-top:20px; }
+  .summary-day {
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:14px 16px; cursor:pointer; transition:border-color 0.2s;
+  }
+  .summary-day:hover { border-color:var(--brand); }
+  .summary-day-date { font-family:'Syne',sans-serif; font-size:0.84rem; font-weight:700; margin-bottom:6px; }
+  .summary-day-stats { display:flex; gap:8px; }
+  .summary-day-pill {
+    font-size:0.72rem; font-weight:600; padding:3px 8px; border-radius:20px;
+  }
+
+  /* Empleados tab */
+  .emp-search {
+    width:100%; background:var(--card); border:1px solid var(--border); border-radius:10px;
+    padding:11px 16px; color:var(--text); font-family:'Plus Jakarta Sans',sans-serif;
+    font-size:0.86rem; outline:none; margin-bottom:16px;
+  }
+  .emp-search:focus { border-color:var(--brand); }
+  .emp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
+  .emp-card {
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:14px 16px; display:flex; align-items:center; justify-content:space-between;
+  }
+  .emp-name { font-size:0.82rem; font-weight:500; }
+  .emp-count { font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:800; color:var(--brand-light); }
+  .emp-count-label { font-size:0.68rem; color:var(--muted); }
+
+  /* Loading */
+  .loading { text-align:center; padding:40px; color:var(--muted); font-size:0.88rem; }
+  .spinner {
+    width:20px; height:20px; border:2px solid var(--border); border-top-color:var(--brand);
+    border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block;
+    vertical-align:middle; margin-right:8px;
+  }
+  @keyframes spin { to { transform:rotate(360deg); } }
+
+  @media(max-width:600px) {
+    .main { padding:20px 14px; }
+    .stats-grid { grid-template-columns:1fr 1fr; }
+    th,td { padding:10px 12px; }
+    .tabs { width:100%; }
+    .tab { flex:1; text-align:center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">RIP<span>CONCIV</span></div>
+    <div class="topbar-badge">Administrador</div>
+  </div>
+  <div class="topbar-right">
+    <span style="font-size:0.78rem;color:var(--muted)" id="topbar-fecha"></span>
+    <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+  <div class="page-head">
+    <h1>Panel Administrativo</h1>
+    <p>Registro y control de almuerzos — Ripconciv</p>
+  </div>
+
+  <!-- STATS HOY -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="stat accent">
+      <div class="stat-label">Total hoy</div>
+      <div class="stat-value" id="s-total">—</div>
+      <div class="stat-sub">de 37 empleados</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Almuerzo completo</div>
+      <div class="stat-value" id="s-completo">—</div>
+      <div class="stat-sub">hoy</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Solo segundo</div>
+      <div class="stat-value" id="s-segundo">—</div>
+      <div class="stat-sub">hoy</div>
+    </div>
+    <div class="stat">
+      <div class="stat-label">Este mes</div>
+      <div class="stat-value" id="s-mes">—</div>
+      <div class="stat-sub">registros totales</div>
+    </div>
+  </div>
+
+  <!-- TABS -->
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('hoy', this)">📋 Hoy</button>
+    <button class="tab" onclick="switchTab('historial', this)">📅 Historial</button>
+    <button class="tab" onclick="switchTab('empleados', this)">👥 Empleados</button>
+  </div>
+
+  <!-- TAB: HOY -->
+  <div class="tab-panel active" id="tab-hoy">
+    <div class="toolbar">
+      <input type="date" class="date-input" id="filtro-fecha" onchange="cargarHoy()">
+      <button class="btn-sm" onclick="cargarHoy()">🔄 Actualizar</button>
+      <div class="toolbar-spacer"></div>
+      <button class="btn-export" onclick="exportarCSV()">⬇ Exportar CSV</button>
+    </div>
+    <div class="table-card">
+      <div class="table-head-bar">
+        <h3>Registros del día</h3>
+        <span class="badge badge-orange" id="badge-count">0 registros</span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead>
+            <tr>
+              <th>#</th><th>Empleado</th><th>Tipo de almuerzo</th><th>Hora de registro</th>
+            </tr>
+          </thead>
+          <tbody id="tabla-hoy">
+            <tr><td colspan="4"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB: HISTORIAL -->
+  <div class="tab-panel" id="tab-historial">
+    <div class="month-picker">
+      <input type="month" class="month-input" id="filtro-mes" onchange="cargarHistorial()">
+      <button class="btn-sm" onclick="cargarHistorial()">🔄 Ver mes</button>
+      <button class="btn-export" onclick="exportarMes()">⬇ Exportar mes</button>
+    </div>
+    <div id="historial-content"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+  </div>
+
+  <!-- TAB: EMPLEADOS -->
+  <div class="tab-panel" id="tab-empleados">
+    <input type="text" class="emp-search" placeholder="🔍 Buscar empleado..." oninput="filtrarEmpleados(this.value)">
+    <div id="emp-grid-wrap"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+  </div>
+</div>
+
+<script>
+const { createClient } = supabase;
+const db = createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
+
+// Auth guard
+if (!requireAuth('admin')) { /* redirect handled */ }
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  const hoy = fechaHoy();
+  document.getElementById('topbar-fecha').textContent = fechaDisplay(hoy);
+  document.getElementById('filtro-fecha').value = hoy;
+
+  const now = new Date();
+  const mesActual = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  document.getElementById('filtro-mes').value = mesActual;
+
+  cargarStats();
+  cargarHoy();
+});
+
+function logout() { clearSession(); window.location.href = 'login.html'; }
+
+// ── TABS ──
+function switchTab(name, el) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  el.classList.add('active');
+
+  if (name === 'historial') cargarHistorial();
+  if (name === 'empleados') cargarEmpleados();
+}
+
+// ── STATS ──
+async function cargarStats() {
+  const hoy = fechaHoy();
+  const mes = hoy.substring(0, 7);
+
+  const [{ data: dHoy }, { count: cMes }] = await Promise.all([
+    db.from('almuerzos').select('tipo').eq('fecha', hoy),
+    db.from('almuerzos').select('*', { count: 'exact', head: true })
+      .gte('fecha', mes + '-01').lte('fecha', mes + '-31')
+  ]);
+
+  const hoyData = dHoy || [];
+  document.getElementById('s-total').textContent = hoyData.length;
+  document.getElementById('s-completo').textContent = hoyData.filter(r => r.tipo === 'completo').length;
+  document.getElementById('s-segundo').textContent = hoyData.filter(r => r.tipo === 'segundo').length;
+  document.getElementById('s-mes').textContent = cMes || 0;
+}
+
+// ── HOY ──
+async function cargarHoy() {
+  const fecha = document.getElementById('filtro-fecha').value || fechaHoy();
+  const tbody = document.getElementById('tabla-hoy');
+  tbody.innerHTML = `<tr><td colspan="4"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>`;
+
+  const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  const rows = data || [];
+
+  document.getElementById('badge-count').textContent = `${rows.length} registros`;
+
+  if (rows.length === 0) {
+    tbody.innerHTML = `<tr><td colspan="4"><div class="empty"><div class="empty-ico">📋</div>Sin registros para esta fecha</div></td></tr>`;
+    return;
+  }
+
+  tbody.innerHTML = rows.map((r, i) => `
+    <tr>
+      <td style="color:var(--muted);font-size:0.78rem">${i+1}</td>
+      <td style="font-weight:500">${r.empleado}</td>
+      <td><span class="pill ${r.tipo==='completo'?'pill-completo':'pill-segundo'}">
+        ${r.tipo==='completo'?'🍱 Almuerzo Completo':'🍛 Solo Segundo'}
+      </span></td>
+      <td style="color:var(--muted)">${horaDisplay(r.hora)}</td>
+    </tr>
+  `).join('');
+}
+
+// ── HISTORIAL ──
+async function cargarHistorial() {
+  const mes = document.getElementById('filtro-mes').value;
+  if (!mes) return;
+  const [y, m] = mes.split('-');
+  const desde = `${y}-${m}-01`;
+  const hasta = `${y}-${m}-31`;
+
+  document.getElementById('historial-content').innerHTML = `<div class="loading"><span class="spinner"></span>Cargando...</div>`;
+
+  const { data } = await db.from('almuerzos').select('fecha,tipo')
+    .gte('fecha', desde).lte('fecha', hasta).order('fecha');
+
+  const rows = data || [];
+  if (rows.length === 0) {
+    document.getElementById('historial-content').innerHTML = `<div class="empty"><div class="empty-ico">📅</div>Sin registros este mes</div>`;
+    return;
+  }
+
+  // Group by date
+  const byDate = {};
+  rows.forEach(r => {
+    if (!byDate[r.fecha]) byDate[r.fecha] = { completo: 0, segundo: 0 };
+    byDate[r.fecha][r.tipo]++;
+  });
+
+  const totalMes = rows.length;
+  const totalCompleto = rows.filter(r => r.tipo === 'completo').length;
+  const totalSegundo = rows.filter(r => r.tipo === 'segundo').length;
+
+  let html = `
+    <div class="stats-grid" style="margin-bottom:20px;">
+      <div class="stat accent"><div class="stat-label">Total del mes</div><div class="stat-value">${totalMes}</div></div>
+      <div class="stat"><div class="stat-label">Completos</div><div class="stat-value">${totalCompleto}</div></div>
+      <div class="stat"><div class="stat-label">Solo segundo</div><div class="stat-value">${totalSegundo}</div></div>
+      <div class="stat"><div class="stat-label">Días con registro</div><div class="stat-value">${Object.keys(byDate).length}</div></div>
+    </div>
+    <div class="summary-grid">
+  `;
+
+  Object.entries(byDate).sort().forEach(([fecha, counts]) => {
+    const total = counts.completo + counts.segundo;
+    html += `
+      <div class="summary-day" onclick="verDia('${fecha}')">
+        <div class="summary-day-date">${fechaDisplay(fecha)}</div>
+        <div class="summary-day-stats">
+          <span class="summary-day-pill pill-completo">🍱 ${counts.completo}</span>
+          <span class="summary-day-pill pill-segundo">🍛 ${counts.segundo}</span>
+          <span style="font-size:0.72rem;color:var(--muted);margin-left:4px;">${total} total</span>
+        </div>
+      </div>
+    `;
+  });
+
+  html += '</div>';
+  document.getElementById('historial-content').innerHTML = html;
+}
+
+function verDia(fecha) {
+  // Switch to hoy tab and load that date
+  document.getElementById('filtro-fecha').value = fecha;
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-hoy').classList.add('active');
+  document.querySelectorAll('.tab')[0].classList.add('active');
+  cargarHoy();
+}
+
+// ── EMPLEADOS ──
+let empData = [];
+
+async function cargarEmpleados() {
+  document.getElementById('emp-grid-wrap').innerHTML = `<div class="loading"><span class="spinner"></span>Cargando...</div>`;
+
+  const { data } = await db.from('almuerzos').select('empleado');
+  const rows = data || [];
+
+  const counts = {};
+  EMPLEADOS.forEach(e => counts[e] = 0);
+  rows.forEach(r => { if (counts[r.empleado] !== undefined) counts[r.empleado]++; });
+
+  empData = Object.entries(counts).sort((a, b) => b[1] - a[1]);
+  renderEmpleados(empData);
+}
+
+function renderEmpleados(data) {
+  if (data.length === 0) {
+    document.getElementById('emp-grid-wrap').innerHTML = `<div class="empty"><div class="empty-ico">👥</div>Sin resultados</div>`;
+    return;
+  }
+  document.getElementById('emp-grid-wrap').innerHTML = `
+    <div class="emp-grid">
+      ${data.map(([nombre, count]) => `
+        <div class="emp-card">
+          <div class="emp-name">${nombre}</div>
+          <div style="text-align:right">
+            <div class="emp-count">${count}</div>
+            <div class="emp-count-label">registros</div>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+}
+
+function filtrarEmpleados(q) {
+  const filtered = empData.filter(([n]) => n.toLowerCase().includes(q.toLowerCase()));
+  renderEmpleados(filtered);
+}
+
+// ── EXPORT CSV ──
+async function exportarCSV() {
+  const fecha = document.getElementById('filtro-fecha').value || fechaHoy();
+  const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  if (!data || data.length === 0) { alert('No hay datos para exportar.'); return; }
+
+  const rows = [['#','Empleado','Tipo','Fecha','Hora']];
+  data.forEach((r, i) => rows.push([
+    i+1, r.empleado,
+    r.tipo === 'completo' ? 'Almuerzo Completo' : 'Solo Segundo',
+    r.fecha, horaDisplay(r.hora)
+  ]));
+
+  descargarCSV(rows, `ripconciv-almuerzos-${fecha}.csv`);
+}
+
+async function exportarMes() {
+  const mes = document.getElementById('filtro-mes').value;
+  if (!mes) return;
+  const [y, m] = mes.split('-');
+  const { data } = await db.from('almuerzos').select('*')
+    .gte('fecha', `${y}-${m}-01`).lte('fecha', `${y}-${m}-31`).order('fecha').order('hora');
+  if (!data || data.length === 0) { alert('No hay datos para exportar.'); return; }
+
+  const rows = [['#','Empleado','Tipo','Fecha','Hora']];
+  data.forEach((r, i) => rows.push([
+    i+1, r.empleado,
+    r.tipo === 'completo' ? 'Almuerzo Completo' : 'Solo Segundo',
+    r.fecha, horaDisplay(r.hora)
+  ]));
+
+  descargarCSV(rows, `ripconciv-almuerzos-${mes}.csv`);
+}
+
+function descargarCSV(rows, filename) {
+  const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+</script>
+</body>
+</html>

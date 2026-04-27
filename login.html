@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Ripconciv — Acceso</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="js/config.js"></script>
+<style>
+  :root {
+    --brand: #E8500A; --brand-dark: #BF3D04; --brand-light: #FF7040;
+    --bg: #0F0E0D; --surface: #1C1A18; --card: #242220;
+    --border: #333130; --text: #F5F3F0; --muted: #8C857D;
+    --error: #EF4444;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  body::before {
+    content:'';
+    position:fixed; inset:0;
+    background: radial-gradient(ellipse 70% 60% at 50% 0%, rgba(232,80,10,0.15) 0%, transparent 65%);
+    pointer-events:none;
+  }
+
+  .login-wrap { width:100%; max-width:380px; }
+
+  .brand {
+    text-align: center;
+    margin-bottom: 36px;
+  }
+  .brand-icon {
+    width: 56px; height: 56px;
+    background: linear-gradient(135deg, var(--brand-dark), var(--brand-light));
+    border-radius: 16px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.6rem;
+    margin: 0 auto 14px;
+    box-shadow: 0 8px 24px rgba(232,80,10,0.35);
+  }
+  .brand h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.3rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .brand h1 span { color: var(--brand-light); }
+  .brand p { color: var(--muted); font-size: 0.82rem; margin-top: 4px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px;
+    box-shadow: 0 24px 48px rgba(0,0,0,0.4);
+  }
+
+  .role-tabs {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    margin-bottom: 24px;
+    background: var(--surface);
+    padding: 6px;
+    border-radius: 14px;
+  }
+  .role-tab {
+    padding: 10px;
+    border-radius: 10px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; align-items: center; justify-content: center; gap: 6px;
+  }
+  .role-tab.active {
+    background: var(--card);
+    color: var(--text);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+  }
+
+  .form-group { margin-bottom: 18px; }
+  label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 8px;
+  }
+  input {
+    width: 100%;
+    background: var(--surface);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 13px 14px;
+    color: var(--text);
+    font-size: 0.9rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+  input:focus { border-color: var(--brand); }
+
+  .alert-error {
+    display: none;
+    background: rgba(239,68,68,0.1);
+    border: 1px solid rgba(239,68,68,0.3);
+    color: #FCA5A5;
+    padding: 11px 14px;
+    border-radius: 10px;
+    font-size: 0.82rem;
+    margin-bottom: 16px;
+  }
+  .alert-error.show { display: block; }
+
+  .btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--brand-dark), var(--brand-light));
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    font-family: 'Syne', sans-serif;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    box-shadow: 0 4px 16px rgba(232,80,10,0.3);
+  }
+  .btn:hover { transform: translateY(-1px); box-shadow: 0 8px 20px rgba(232,80,10,0.4); }
+
+  .back-link {
+    display: block;
+    text-align: center;
+    margin-top: 16px;
+    font-size: 0.8rem;
+    color: var(--muted);
+    text-decoration: none;
+    transition: color 0.2s;
+  }
+  .back-link:hover { color: var(--text); }
+
+  .role-hint {
+    background: var(--surface);
+    border-radius: 10px;
+    padding: 10px 14px;
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 18px;
+    line-height: 1.5;
+  }
+  .role-hint strong { color: var(--brand-light); }
+</style>
+</head>
+<body>
+<div class="login-wrap">
+  <div class="brand">
+    <div class="brand-icon">🔐</div>
+    <h1>RIP<span>CONCIV</span></h1>
+    <p>Panel de administración — Acceso restringido</p>
+  </div>
+
+  <div class="card">
+    <div class="role-tabs">
+      <button class="role-tab active" id="tab-admin" onclick="setRol('admin')">
+        📊 Administrador
+      </button>
+      <button class="role-tab" id="tab-cocina" onclick="setRol('cocina')">
+        🍽️ Cocina
+      </button>
+    </div>
+
+    <div class="role-hint" id="role-hint">
+      <strong>Administrador:</strong> acceso completo a reportes, historial y exportaciones.
+    </div>
+
+    <div class="form-group">
+      <label>Usuario</label>
+      <input type="text" id="inp-user" placeholder="Ingresa tu usuario" autocomplete="username">
+    </div>
+    <div class="form-group">
+      <label>Contraseña</label>
+      <input type="password" id="inp-pass" placeholder="••••••••" autocomplete="current-password"
+        onkeydown="if(event.key==='Enter') login()">
+    </div>
+
+    <div class="alert-error" id="alert-err">❌ Usuario o contraseña incorrectos.</div>
+
+    <button class="btn" onclick="login()">Ingresar</button>
+  </div>
+
+  <a href="index.html" class="back-link">← Volver al registro de empleados</a>
+</div>
+
+<script>
+let rolActual = 'admin';
+
+// Read rol from URL params
+const params = new URLSearchParams(window.location.search);
+const rolParam = params.get('rol');
+if (rolParam === 'cocina') setRol('cocina');
+
+function setRol(rol) {
+  rolActual = rol;
+  document.getElementById('tab-admin').classList.toggle('active', rol === 'admin');
+  document.getElementById('tab-cocina').classList.toggle('active', rol === 'cocina');
+  document.getElementById('alert-err').classList.remove('show');
+
+  const hint = document.getElementById('role-hint');
+  if (rol === 'admin') {
+    hint.innerHTML = '<strong>Administrador:</strong> acceso completo a reportes, historial y exportaciones.';
+    document.getElementById('inp-user').placeholder = 'admin';
+  } else {
+    hint.innerHTML = '<strong>Cocina:</strong> vista del resumen del día con actualización en tiempo real.';
+    document.getElementById('inp-user').placeholder = 'cocina';
+  }
+}
+
+function login() {
+  const user = document.getElementById('inp-user').value.trim().toLowerCase();
+  const pass = document.getElementById('inp-pass').value;
+  const err = document.getElementById('alert-err');
+
+  const usuarios = CONFIG.usuarios;
+  const matchUser = Object.entries(usuarios).find(
+    ([u, d]) => u.toLowerCase() === user && d.password === pass && d.rol === rolActual
+  );
+
+  if (!matchUser) {
+    err.classList.add('show');
+    document.getElementById('inp-pass').value = '';
+    return;
+  }
+
+  setSession(rolActual);
+  window.location.href = rolActual === 'admin' ? 'admin.html' : 'cocina.html';
+}
+</script>
+</body>
+</html>

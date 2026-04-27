@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>Ripconciv — Registro de Almuerzo</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<style>
+  :root {
+    --brand:       #E8500A;
+    --brand-dark:  #BF3D04;
+    --brand-light: #FF7040;
+    --bg:          #F7F4F0;
+    --surface:     #FFFFFF;
+    --card:        #FFFFFF;
+    --border:      #E2DDD8;
+    --text:        #1A1714;
+    --muted:       #8C857D;
+    --success:     #1A9E5C;
+    --warning:     #D97706;
+    --error:       #DC2626;
+    --shadow:      0 2px 16px rgba(26,23,20,0.08);
+    --shadow-lg:   0 8px 40px rgba(26,23,20,0.14);
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100dvh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 24px 16px;
+  }
+
+  /* Geometric background */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background:
+      radial-gradient(circle 600px at 80% -10%, rgba(232,80,10,0.08) 0%, transparent 60%),
+      radial-gradient(circle 400px at -10% 80%, rgba(232,80,10,0.05) 0%, transparent 60%);
+    pointer-events: none;
+  }
+
+  .logo-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .logo-mark {
+    width: 36px; height: 36px;
+    background: linear-gradient(135deg, var(--brand-dark), var(--brand-light));
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 1.1rem;
+  }
+  .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: -0.01em;
+  }
+  .logo-text span { color: var(--brand); }
+
+  /* Card */
+  .card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 24px;
+    box-shadow: var(--shadow-lg);
+    overflow: hidden;
+  }
+
+  .card-top {
+    background: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 60%, var(--brand-light) 100%);
+    padding: 28px 28px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .card-top::after {
+    content: '🍽️';
+    position: absolute;
+    right: -8px; bottom: -12px;
+    font-size: 5rem;
+    opacity: 0.15;
+    transform: rotate(-15deg);
+  }
+  .card-top h1 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 800;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .fecha-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(255,255,255,0.2);
+    backdrop-filter: blur(4px);
+    color: #fff;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: 500;
+  }
+
+  .card-body { padding: 28px; }
+
+  /* Alert */
+  .alert {
+    display: none;
+    padding: 12px 14px;
+    border-radius: 12px;
+    font-size: 0.84rem;
+    font-weight: 500;
+    margin-bottom: 20px;
+    line-height: 1.4;
+  }
+  .alert.show { display: flex; align-items: flex-start; gap: 8px; }
+  .alert-warning { background: #FEF3C7; border: 1px solid #F59E0B; color: #92400E; }
+  .alert-error   { background: #FEE2E2; border: 1px solid #FCA5A5; color: #7F1D1D; }
+
+  /* Form */
+  .form-group { margin-bottom: 20px; }
+  .form-label {
+    display: block;
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    margin-bottom: 8px;
+  }
+
+  .select-wrapper { position: relative; }
+  .select-wrapper::after {
+    content: '▾';
+    position: absolute; right: 14px; top: 50%;
+    transform: translateY(-50%);
+    color: var(--muted);
+    pointer-events: none;
+    font-size: 0.9rem;
+  }
+  select {
+    width: 100%;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    padding: 13px 40px 13px 14px;
+    color: var(--text);
+    font-size: 0.9rem;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    outline: none;
+    appearance: none;
+    cursor: pointer;
+    transition: border-color 0.2s;
+  }
+  select:focus { border-color: var(--brand); }
+
+  /* Tipo cards */
+  .tipo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .tipo-card {
+    background: var(--bg);
+    border: 2px solid var(--border);
+    border-radius: 16px;
+    padding: 18px 12px 14px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.18s ease;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+  .tipo-card:active { transform: scale(0.97); }
+  .tipo-card.selected {
+    border-color: var(--brand);
+    background: #FFF4F0;
+    box-shadow: 0 0 0 4px rgba(232,80,10,0.08);
+  }
+  .tipo-card .tipo-ico { font-size: 2.2rem; margin-bottom: 10px; line-height: 1; }
+  .tipo-card .tipo-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 0.82rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--text);
+  }
+  .tipo-card .tipo-desc { font-size: 0.7rem; color: var(--muted); margin-top: 4px; }
+  .tipo-card.selected .tipo-name { color: var(--brand); }
+  .tipo-check {
+    display: none;
+    width: 20px; height: 20px;
+    background: var(--brand);
+    border-radius: 50%;
+    margin: 8px auto 0;
+    align-items: center; justify-content: center;
+    color: #fff; font-size: 0.7rem;
+  }
+  .tipo-card.selected .tipo-check { display: flex; }
+
+  /* Button */
+  .btn-submit {
+    width: 100%;
+    padding: 16px;
+    background: linear-gradient(135deg, var(--brand-dark), var(--brand-light));
+    color: #fff;
+    border: none;
+    border-radius: 14px;
+    font-family: 'Syne', sans-serif;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 4px;
+    letter-spacing: 0.01em;
+    box-shadow: 0 4px 16px rgba(232,80,10,0.3);
+  }
+  .btn-submit:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(232,80,10,0.4);
+  }
+  .btn-submit:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.4);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block; vertical-align: middle;
+    margin-right: 8px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Success */
+  .success-view {
+    display: none;
+    text-align: center;
+    padding: 8px 0 4px;
+  }
+  .success-view.show { display: block; animation: fadeUp 0.4s ease; }
+  @keyframes fadeUp { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform:none; } }
+
+  .success-ring {
+    width: 80px; height: 80px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--success), #16A34A);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 2rem;
+    margin: 0 auto 20px;
+    box-shadow: 0 8px 24px rgba(26,158,92,0.3);
+    animation: popIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275) 0.1s both;
+  }
+  @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
+
+  .success-view h2 {
+    font-family: 'Syne', sans-serif;
+    font-size: 1.5rem;
+    font-weight: 800;
+    margin-bottom: 6px;
+    color: var(--success);
+  }
+  .success-view .success-sub { color: var(--muted); font-size: 0.88rem; margin-bottom: 20px; }
+
+  .success-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: #F0FDF4;
+    border: 1px solid #BBF7D0;
+    border-radius: 12px;
+    padding: 12px 18px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #166534;
+    margin-bottom: 8px;
+    width: 100%;
+    justify-content: center;
+  }
+  .success-name {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 18px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 20px;
+    font-weight: 500;
+  }
+
+  .btn-nuevo {
+    width: 100%;
+    padding: 13px;
+    background: var(--bg);
+    border: 1.5px solid var(--border);
+    border-radius: 12px;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--text);
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-nuevo:hover { border-color: var(--brand); color: var(--brand); }
+
+  .footer-note {
+    margin-top: 20px;
+    font-size: 0.72rem;
+    color: var(--muted);
+    text-align: center;
+  }
+</style>
+</head>
+<body>
+
+<div class="logo-bar">
+  <div class="logo-mark">🏗️</div>
+  <div class="logo-text">RIP<span>CONCIV</span></div>
+</div>
+
+<div class="card">
+  <div class="card-top">
+    <h1>Registro de Almuerzo</h1>
+    <div class="fecha-chip">📅 <span id="fecha-hoy"></span></div>
+  </div>
+
+  <div class="card-body">
+    <!-- FORM -->
+    <div id="form-view">
+      <div class="alert alert-warning" id="alert-dup">
+        ⚠️ Ya registraste tu almuerzo hoy. Solo se permite un registro por día.
+      </div>
+      <div class="alert alert-error" id="alert-err">
+        <span>❌</span> <span id="alert-err-msg">Ocurrió un error. Intenta de nuevo.</span>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tu nombre completo</label>
+        <div class="select-wrapper">
+          <select id="sel-empleado" onchange="onFormChange()">
+            <option value="">— Selecciona tu nombre —</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tipo de almuerzo</label>
+        <div class="tipo-grid">
+          <div class="tipo-card" id="card-completo" onclick="selectTipo('completo')">
+            <div class="tipo-ico">🍱</div>
+            <div class="tipo-name">Almuerzo Completo</div>
+            <div class="tipo-desc">Sopa + Segundo + Jugo</div>
+            <div class="tipo-check">✓</div>
+          </div>
+          <div class="tipo-card" id="card-segundo" onclick="selectTipo('segundo')">
+            <div class="tipo-ico">🍛</div>
+            <div class="tipo-name">Solo Segundo</div>
+            <div class="tipo-desc">Segundo + Jugo</div>
+            <div class="tipo-check">✓</div>
+          </div>
+        </div>
+      </div>
+
+      <button class="btn-submit" id="btn-submit" onclick="registrar()" disabled>
+        Confirmar Registro
+      </button>
+    </div>
+
+    <!-- SUCCESS -->
+    <div class="success-view" id="success-view">
+      <div class="success-ring">✓</div>
+      <h2>¡Registrado!</h2>
+      <p class="success-sub">Tu almuerzo fue confirmado para hoy</p>
+      <div class="success-pill" id="suc-tipo"></div>
+      <div class="success-name" id="suc-nombre"></div>
+      <button class="btn-nuevo" onclick="resetForm()">Registrar otra persona</button>
+    </div>
+  </div>
+</div>
+
+<div class="footer-note">Ripconciv © <span id="year"></span> — Sistema de Almuerzos</div>
+
+<script>
+const { createClient } = supabase;
+const db = createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
+
+let tipoSeleccionado = null;
+
+// Init
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('year').textContent = new Date().getFullYear();
+  const hoy = fechaHoy();
+  document.getElementById('fecha-hoy').textContent = fechaDisplay(hoy);
+
+  const sel = document.getElementById('sel-empleado');
+  EMPLEADOS.forEach(e => {
+    const o = document.createElement('option');
+    o.value = e; o.textContent = e;
+    sel.appendChild(o);
+  });
+});
+
+function selectTipo(tipo) {
+  tipoSeleccionado = tipo;
+  document.getElementById('card-completo').classList.toggle('selected', tipo === 'completo');
+  document.getElementById('card-segundo').classList.toggle('selected', tipo === 'segundo');
+  onFormChange();
+}
+
+function onFormChange() {
+  const emp = document.getElementById('sel-empleado').value;
+  document.getElementById('btn-submit').disabled = !(emp && tipoSeleccionado);
+  hideAlerts();
+}
+
+function hideAlerts() {
+  document.getElementById('alert-dup').classList.remove('show');
+  document.getElementById('alert-err').classList.remove('show');
+}
+
+async function registrar() {
+  const empleado = document.getElementById('sel-empleado').value;
+  if (!empleado || !tipoSeleccionado) return;
+
+  const btn = document.getElementById('btn-submit');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span>Registrando...';
+  hideAlerts();
+
+  const hoy = fechaHoy();
+
+  // Check duplicado
+  const { data: dup } = await db.from('almuerzos')
+    .select('id').eq('empleado', empleado).eq('fecha', hoy).limit(1);
+
+  if (dup && dup.length > 0) {
+    document.getElementById('alert-dup').classList.add('show');
+    btn.disabled = false;
+    btn.innerHTML = 'Confirmar Registro';
+    return;
+  }
+
+  // Insert
+  const { error } = await db.from('almuerzos').insert({
+    empleado,
+    tipo: tipoSeleccionado,
+    fecha: hoy,
+    hora: new Date().toISOString()
+  });
+
+  if (error) {
+    document.getElementById('alert-err').classList.add('show');
+    document.getElementById('alert-err-msg').textContent = error.message;
+    btn.disabled = false;
+    btn.innerHTML = 'Confirmar Registro';
+    return;
+  }
+
+  // Mostrar éxito
+  document.getElementById('suc-tipo').textContent =
+    tipoSeleccionado === 'completo' ? '🍱 Almuerzo Completo confirmado' : '🍛 Solo Segundo confirmado';
+  document.getElementById('suc-nombre').textContent = '👤 ' + empleado;
+  document.getElementById('form-view').style.display = 'none';
+  document.getElementById('success-view').classList.add('show');
+}
+
+function resetForm() {
+  tipoSeleccionado = null;
+  document.getElementById('sel-empleado').value = '';
+  document.getElementById('card-completo').classList.remove('selected');
+  document.getElementById('card-segundo').classList.remove('selected');
+  document.getElementById('btn-submit').disabled = true;
+  document.getElementById('btn-submit').innerHTML = 'Confirmar Registro';
+  document.getElementById('form-view').style.display = 'block';
+  document.getElementById('success-view').classList.remove('show');
+  hideAlerts();
+}
+</script>
+</body>
+</html>

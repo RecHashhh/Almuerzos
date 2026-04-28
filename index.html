@@ -453,7 +453,6 @@ function onMsalSuccess(resp) {
   const domain  = email.split('@')[1] || '';
   if (domain.toLowerCase() !== CONFIG.dominioPermitido) {
     showAlert('alert-err', `Solo se permiten cuentas @${CONFIG.dominioPermitido}.`);
-    msalApp.logoutRedirect();
     return;
   }
   const rawName = account.name || email.split('@')[0].replace(/\./g,' ').toUpperCase();

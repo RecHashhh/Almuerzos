@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ripconciv — Supervisor</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<link rel="stylesheet" href="js/shared.css">
+<style>
+body.dark{}
+.main{max-width:1000px;margin:0 auto;padding:28px 22px 48px;}
+
+/* Header banner */
+.sup-banner{
+  background:linear-gradient(135deg,#1E3A5F 0%,#2563EB 60%,#3B82F6 100%);
+  border-radius:var(--radius);padding:24px 28px;margin-bottom:24px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:relative;overflow:hidden;}
+.sup-banner::after{content:'👁️';position:absolute;right:16px;top:50%;
+  transform:translateY(-50%);font-size:5rem;opacity:.1;}
+.sup-banner h1{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:#fff;margin-bottom:4px;}
+.sup-banner p{color:rgba(255,255,255,.7);font-size:.82rem;}
+.readonly-chip{display:inline-flex;align-items:center;gap:5px;
+  background:rgba(255,255,255,.15);color:#fff;padding:4px 12px;
+  border-radius:20px;font-size:.72rem;font-weight:600;margin-top:8px;}
+
+/* Live bar */
+.live-bar{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:9px 16px;display:flex;align-items:center;justify-content:space-between;
+  font-size:.78rem;color:var(--muted);margin-bottom:22px;}
+.live-dot{width:8px;height:8px;border-radius:50%;background:#22C55E;
+  display:inline-block;margin-right:6px;animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* Tabs */
+.tabs{display:flex;gap:4px;background:var(--surface);padding:6px;border-radius:14px;
+  width:fit-content;margin-bottom:24px;flex-wrap:wrap;}
+.tab{padding:9px 18px;border-radius:10px;border:none;background:transparent;color:var(--muted);
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s;}
+.tab.active{background:var(--card);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.3);}
+.tab-panel{display:none;}.tab-panel.active{display:block;}
+
+/* Toolbar */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px;}
+.date-in{background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:9px 14px;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:.84rem;outline:none;transition:border-color .2s;}
+.date-in:focus{border-color:#2563EB;}
+.spacer{flex:1;}
+
+/* Summary cards — big numbers */
+.summary-row{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px;}
+.scard{background:var(--card);border:1px solid var(--border);border-radius:14px;
+  padding:18px 16px;text-align:center;position:relative;overflow:hidden;}
+.scard::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;}
+.scard.c-total::before  {background:linear-gradient(90deg,#2563EB,#3B82F6);}
+.scard.c-ahi::before    {background:linear-gradient(90deg,var(--success),#16A34A);}
+.scard.c-llevar::before {background:linear-gradient(90deg,#7C3AED,#A78BFA);}
+.scard.c-conf::before   {background:linear-gradient(90deg,var(--brand-dark),var(--brand-light));}
+.scard.c-pend::before   {background:linear-gradient(90deg,var(--muted),#A8A29E);}
+.scard.c-flag::before   {background:linear-gradient(90deg,var(--warning),#FCD34D);}
+.scard-num{font-family:'Syne',sans-serif;font-size:2.6rem;font-weight:800;line-height:1;margin-bottom:6px;}
+.scard.c-total  .scard-num{color:#3B82F6;}
+.scard.c-ahi    .scard-num{color:var(--success);}
+.scard.c-llevar .scard-num{color:#A78BFA;}
+.scard.c-conf   .scard-num{color:var(--brand-light);}
+.scard.c-pend   .scard-num{color:var(--muted);}
+.scard.c-flag   .scard-num{color:var(--warning);}
+.scard-label{font-size:.7rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+
+/* Donut-style progress bar */
+.progress-wrap{background:var(--surface);border:1px solid var(--border);border-radius:14px;
+  padding:16px 20px;margin-bottom:22px;display:flex;align-items:center;gap:16px;}
+.progress-bar-outer{flex:1;height:10px;background:var(--border);border-radius:20px;overflow:hidden;}
+.progress-bar-inner{height:100%;border-radius:20px;
+  background:linear-gradient(90deg,var(--brand-dark),var(--brand-light));transition:width .5s ease;}
+.progress-label{font-size:.78rem;color:var(--muted);white-space:nowrap;}
+.progress-pct{font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;color:var(--brand-light);}
+
+/* Table */
+.table-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;}
+.table-head-bar{display:flex;align-items:center;justify-content:space-between;
+  padding:14px 20px;border-bottom:1px solid var(--border);}
+.table-head-bar h3{font-family:'Syne',sans-serif;font-size:.92rem;font-weight:700;}
+.table-scroll{overflow-x:auto;}
+table{width:100%;border-collapse:collapse;}
+th{padding:10px 16px;text-align:left;font-size:.7rem;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--muted);background:var(--surface);border-bottom:1px solid var(--border);}
+td{padding:12px 16px;font-size:.84rem;border-bottom:1px solid rgba(51,49,48,.3);}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,.025);}
+
+/* Status indicators (read-only, no buttons) */
+.status-ro{display:inline-flex;align-items:center;gap:6px;font-size:.8rem;font-weight:600;}
+.dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;}
+.dot-green {background:#22C55E;}
+.dot-yellow{background:var(--warning);}
+.dot-gray  {background:var(--muted);}
+
+/* Employee frequency table */
+.freq-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:10px;margin-top:4px;}
+.freq-card{background:var(--card);border:1px solid var(--border);border-radius:12px;
+  padding:12px 16px;display:flex;align-items:center;justify-content:space-between;}
+.freq-name{font-size:.82rem;font-weight:500;flex:1;padding-right:8px;}
+.freq-bar-wrap{width:60px;height:6px;background:var(--border);border-radius:10px;margin-right:10px;overflow:hidden;}
+.freq-bar{height:100%;border-radius:10px;background:linear-gradient(90deg,#2563EB,#3B82F6);}
+.freq-count{font-family:'Syne',sans-serif;font-size:1.1rem;font-weight:800;color:#3B82F6;min-width:28px;text-align:right;}
+
+/* Day history cards */
+.day-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px;margin-top:16px;}
+.day-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;}
+.day-date{font-family:'Syne',sans-serif;font-size:.84rem;font-weight:700;margin-bottom:8px;}
+.day-pills{display:flex;gap:6px;flex-wrap:wrap;}
+
+/* Search */
+.search-in{width:100%;background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:10px 14px;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;
+  font-size:.84rem;outline:none;margin-bottom:14px;}
+.search-in:focus{border-color:#2563EB;}
+
+@media(max-width:580px){
+  .main{padding:16px 12px;}
+  .summary-row{grid-template-columns:1fr 1fr 1fr;}
+  .tabs{width:100%;}
+  .tab{flex:1;font-size:.74rem;padding:8px 6px;text-align:center;}
+  th,td{padding:9px 10px;}
+}
+</style>
+</head>
+<body class="dark">
+
+<!-- Topbar -->
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <div class="topbar-logo">RIP<span>CONCIV</span></div>
+    <div class="topbar-badge" style="background:rgba(37,99,235,.15);border-color:rgba(37,99,235,.3);color:#93C5FD;">
+      Supervisor
+    </div>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span style="font-size:.78rem;color:var(--muted)" id="topbar-fecha"></span>
+    <button class="btn btn-ghost" style="font-size:.8rem;padding:7px 14px;" onclick="logout()">Cerrar sesión</button>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- Banner -->
+  <div class="sup-banner">
+    <div>
+      <h1>👁️ Panel Supervisor</h1>
+      <p>Seguimiento y conteo de almuerzos — solo lectura</p>
+      <div class="readonly-chip">🔒 Sin permisos de modificación</div>
+    </div>
+  </div>
+
+  <!-- Live indicator -->
+  <div class="live-bar">
+    <span><span class="live-dot"></span>Actualizando en tiempo real</span>
+    <span style="color:var(--brand-light);font-weight:600;" id="countdown-bar">30s</span>
+  </div>
+
+  <!-- Tabs -->
+  <div class="tabs">
+    <button class="tab active" onclick="st('hoy',this)">📋 Hoy</button>
+    <button class="tab" onclick="st('asistencia',this)">✅ Asistencia</button>
+    <button class="tab" onclick="st('frecuencia',this)">📊 Frecuencia</button>
+    <button class="tab" onclick="st('historial',this)">📅 Historial</button>
+  </div>
+
+  <!-- ─── TAB: HOY ─── -->
+  <div class="tab-panel active" id="tp-hoy">
+
+    <!-- Big numbers -->
+    <div class="summary-row" id="summary-hoy"></div>
+
+    <!-- Progress bar -->
+    <div class="progress-wrap">
+      <span class="progress-label">Participación del día</span>
+      <div class="progress-bar-outer">
+        <div class="progress-bar-inner" id="prog-bar" style="width:0%"></div>
+      </div>
+      <span class="progress-pct" id="prog-pct">0%</span>
+      <span class="progress-label" id="prog-label">de 37</span>
+    </div>
+
+    <!-- Toolbar -->
+    <div class="toolbar">
+      <input type="date" class="date-in" id="f-hoy" onchange="cargarHoy()">
+      <button class="btn btn-ghost" style="font-size:.82rem;padding:9px 14px;" onclick="cargarHoy()">🔄</button>
+      <div class="spacer"></div>
+      <button class="btn btn-secondary" style="font-size:.82rem;padding:9px 16px;" onclick="exportHoy()">⬇ CSV</button>
+    </div>
+
+    <div class="table-card">
+      <div class="table-head-bar">
+        <h3>Registros del día</h3>
+        <span class="badge badge-blue" id="hoy-badge">0 registros</span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Empleado</th><th>Modalidad</th><th>Tipo</th><th>Hora</th><th>Asistencia</th>
+          </tr></thead>
+          <tbody id="hoy-tbody">
+            <tr><td colspan="6"><div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── TAB: ASISTENCIA ─── -->
+  <div class="tab-panel" id="tp-asistencia">
+    <div class="toolbar">
+      <input type="date" class="date-in" id="f-asist" onchange="cargarAsistencia()">
+      <button class="btn btn-ghost" style="font-size:.82rem;padding:9px 14px;" onclick="cargarAsistencia()">🔄</button>
+      <div class="spacer"></div>
+      <button class="btn btn-secondary" style="font-size:.82rem;padding:9px 16px;" onclick="exportAsist()">⬇ CSV</button>
+    </div>
+
+    <!-- Asistencia stats -->
+    <div class="summary-row" id="summary-asist" style="margin-bottom:18px;"></div>
+
+    <div class="table-card">
+      <div class="table-head-bar">
+        <h3>Estado de asistencia</h3>
+        <span class="badge badge-blue" id="asist-badge">0</span>
+      </div>
+      <div class="table-scroll">
+        <table>
+          <thead><tr>
+            <th>#</th><th>Empleado</th><th>Tipo</th><th>Registro</th><th>Estado cocina</th><th>Hora confirmación</th>
+          </tr></thead>
+          <tbody id="asist-tbody">
+            <tr><td colspan="6"><div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div></td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ─── TAB: FRECUENCIA ─── -->
+  <div class="tab-panel" id="tp-frecuencia">
+    <div class="toolbar">
+      <input type="month" class="date-in" id="f-freq-mes" onchange="cargarFrecuencia()">
+      <button class="btn btn-ghost" style="font-size:.82rem;padding:9px 14px;" onclick="cargarFrecuencia()">🔄</button>
+      <div class="spacer"></div>
+      <button class="btn btn-secondary" style="font-size:.82rem;padding:9px 16px;" onclick="exportFreq()">⬇ CSV</button>
+    </div>
+
+    <div class="summary-row" id="summary-freq" style="margin-bottom:18px;"></div>
+
+    <input type="text" class="search-in" placeholder="🔍 Buscar empleado..." oninput="filtrarFreq(this.value)">
+    <div id="freq-grid-wrap">
+      <div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div>
+    </div>
+  </div>
+
+  <!-- ─── TAB: HISTORIAL ─── -->
+  <div class="tab-panel" id="tp-historial">
+    <div class="toolbar">
+      <input type="month" class="date-in" id="f-hist-mes" onchange="cargarHistorial()">
+      <button class="btn btn-ghost" style="font-size:.82rem;padding:9px 14px;" onclick="cargarHistorial()">🔄</button>
+      <div class="spacer"></div>
+      <button class="btn btn-secondary" style="font-size:.82rem;padding:9px 16px;" onclick="exportMes()">⬇ CSV mes</button>
+    </div>
+    <div class="summary-row" id="summary-hist" style="margin-bottom:18px;"></div>
+    <div id="hist-wrap">
+      <div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div>
+    </div>
+  </div>
+
+</div><!-- /main -->
+
+<script>
+const { createClient } = supabase;
+const db = createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
+if (!requireAuth('supervisor')) {}
+
+let freqData = [];
+let cdVal = CONFIG.refreshInterval / 1000;
+
+document.addEventListener('DOMContentLoaded', () => {
+  const hoy = fechaHoy();
+  const mes  = hoy.substring(0, 7);
+  document.getElementById('topbar-fecha').textContent = fechaDisplay(hoy);
+  document.getElementById('f-hoy').value       = hoy;
+  document.getElementById('f-asist').value     = hoy;
+  document.getElementById('f-freq-mes').value  = mes;
+  document.getElementById('f-hist-mes').value  = mes;
+
+  cargarHoy();
+
+  // Countdown + auto-refresh (hoy tab)
+  setInterval(() => {
+    cdVal--;
+    document.getElementById('countdown-bar').textContent = cdVal + 's';
+    if (cdVal <= 0) {
+      cdVal = CONFIG.refreshInterval / 1000;
+      cargarHoy(); // refresh current tab silently
+    }
+  }, 1000);
+});
+
+function logout() { clearSession(); window.location.href = 'login.html'; }
+
+let activeTab = 'hoy';
+function st(tab, el) {
+  activeTab = tab;
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tp-' + tab).classList.add('active');
+  el.classList.add('active');
+  if (tab === 'asistencia') cargarAsistencia();
+  if (tab === 'frecuencia') cargarFrecuencia();
+  if (tab === 'historial')  cargarHistorial();
+}
+
+// ════════════════════════════
+// HOY
+// ════════════════════════════
+async function cargarHoy() {
+  const fecha = document.getElementById('f-hoy').value || fechaHoy();
+  const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  const rows = data || [];
+
+  const ahi    = rows.filter(r => r.modalidad === 'ahi');
+  const llevar = rows.filter(r => r.modalidad === 'llevar');
+  const conf   = rows.filter(r => r.asistio);
+  const pend   = rows.filter(r => !r.asistio);
+  const flags  = rows.filter(r => r.asistio_flag);
+  const comp   = ahi.filter(r => r.tipo === 'completo');
+  const seg    = ahi.filter(r => r.tipo === 'segundo');
+  const total  = CONFIG.totalEmpleados;
+  const pct    = total > 0 ? Math.round(rows.length / total * 100) : 0;
+
+  // Summary cards
+  document.getElementById('summary-hoy').innerHTML = `
+    <div class="scard c-total"><div class="scard-num">${rows.length}</div><div class="scard-label">Total registrados</div></div>
+    <div class="scard c-ahi"><div class="scard-num">${ahi.length}</div><div class="scard-label">Comen aquí</div></div>
+    <div class="scard c-llevar"><div class="scard-num">${llevar.length}</div><div class="scard-label">Para llevar</div></div>
+    <div class="scard c-conf"><div class="scard-num">${conf.length}</div><div class="scard-label">Confirmados</div></div>
+    <div class="scard c-pend"><div class="scard-num">${pend.length}</div><div class="scard-label">Sin confirmar</div></div>
+    ${flags.length ? `<div class="scard c-flag"><div class="scard-num">${flags.length}</div><div class="scard-label">⚠️ Marcas pendientes</div></div>` : ''}
+  `;
+
+  // Progress
+  document.getElementById('prog-bar').style.width  = pct + '%';
+  document.getElementById('prog-pct').textContent  = pct + '%';
+  document.getElementById('prog-label').textContent = `de ${total} empleados`;
+
+  document.getElementById('hoy-badge').textContent = rows.length + ' registros';
+
+  // Table
+  const tbody = document.getElementById('hoy-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-ico">📋</div>Sin registros para esta fecha</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map((r, i) => {
+    const tipoPill = r.modalidad === 'ahi'
+      ? `<span class="pill ${r.tipo === 'completo' ? 'pill-completo' : 'pill-segundo'}">${r.tipo === 'completo' ? '🍱 Completo' : '🍛 Segundo'}</span>`
+      : `<span style="font-size:.76rem;color:var(--muted);">${r.llevar_plato || '—'}</span>`;
+    const modPill = `<span class="pill ${r.modalidad === 'ahi' ? 'pill-ahi' : 'pill-llevar'}">${r.modalidad === 'ahi' ? '🪑 Aquí' : '🥡 Llevar'}</span>`;
+    const guestTag = r.tipo_user === 'guest' ? '<span class="badge badge-blue" style="margin-left:5px;font-size:.68rem;">Inv</span>' : '';
+    const asistHTML = asistBadge(r);
+    return `<tr>
+      <td style="color:var(--muted);font-size:.76rem">${i + 1}</td>
+      <td style="font-weight:500">${r.empleado}${guestTag}</td>
+      <td>${modPill}</td>
+      <td>${tipoPill}</td>
+      <td style="color:var(--muted)">${horaDisplay(r.hora)}</td>
+      <td>${asistHTML}</td>
+    </tr>`;
+  }).join('');
+}
+
+function asistBadge(r) {
+  if (r.asistio && !r.asistio_flag)
+    return `<span class="status-ro"><span class="dot dot-green"></span>Confirmado</span>`;
+  if (r.asistio_flag)
+    return `<span class="status-ro"><span class="dot dot-yellow"></span>⚠️ Revisión</span>`;
+  return `<span class="status-ro"><span class="dot dot-gray"></span>Pendiente</span>`;
+}
+
+// ════════════════════════════
+// ASISTENCIA
+// ════════════════════════════
+async function cargarAsistencia() {
+  const fecha = document.getElementById('f-asist').value || fechaHoy();
+  const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  const rows = data || [];
+
+  const conf  = rows.filter(r => r.asistio && !r.asistio_flag);
+  const flags = rows.filter(r => r.asistio_flag);
+  const pend  = rows.filter(r => !r.asistio && !r.asistio_flag);
+  const pct   = rows.length > 0 ? Math.round(conf.length / rows.length * 100) : 0;
+
+  document.getElementById('summary-asist').innerHTML = `
+    <div class="scard c-total"><div class="scard-num">${rows.length}</div><div class="scard-label">Total pedidos</div></div>
+    <div class="scard c-ahi"><div class="scard-num">${conf.length}</div><div class="scard-label">Confirmados ✅</div></div>
+    <div class="scard c-pend"><div class="scard-num">${pend.length}</div><div class="scard-label">Sin confirmar</div></div>
+    ${flags.length ? `<div class="scard c-flag"><div class="scard-num">${flags.length}</div><div class="scard-label">⚠️ Pendiente revisión</div></div>` : ''}
+    <div class="scard c-conf"><div class="scard-num">${pct}%</div><div class="scard-label">Tasa confirmación</div></div>
+  `;
+
+  document.getElementById('asist-badge').textContent = rows.length;
+
+  const tbody = document.getElementById('asist-tbody');
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-ico">📋</div>Sin registros</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map((r, i) => {
+    const tipoPill = r.modalidad === 'ahi'
+      ? `<span class="pill ${r.tipo === 'completo' ? 'pill-completo' : 'pill-segundo'}">${r.tipo === 'completo' ? '🍱 Completo' : '🍛 Segundo'}</span>`
+      : `<span class="pill pill-llevar">🥡 Llevar</span>`;
+    const horaChk = r.asistio_marcado ? horaDisplay(r.asistio_marcado) : '—';
+    return `<tr>
+      <td style="color:var(--muted);font-size:.76rem">${i + 1}</td>
+      <td style="font-weight:500">${r.empleado}</td>
+      <td>${tipoPill}</td>
+      <td style="color:var(--muted)">${horaDisplay(r.hora)}</td>
+      <td>${asistBadge(r)}</td>
+      <td style="color:var(--muted)">${horaChk}</td>
+    </tr>`;
+  }).join('');
+}
+
+// ════════════════════════════
+// FRECUENCIA
+// ════════════════════════════
+async function cargarFrecuencia() {
+  const mes = document.getElementById('f-freq-mes').value;
+  if (!mes) return;
+  const [y, m] = mes.split('-');
+
+  document.getElementById('freq-grid-wrap').innerHTML =
+    `<div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div>`;
+
+  const { data } = await db.from('almuerzos').select('empleado,tipo,modalidad,asistio')
+    .gte('fecha', `${y}-${m}-01`).lte('fecha', `${y}-${m}-31`);
+  const rows = data || [];
+
+  // Count per employee
+  const counts = {};
+  EMPLEADOS.forEach(e => counts[e] = { total: 0, completo: 0, segundo: 0, llevar: 0, conf: 0 });
+  rows.forEach(r => {
+    if (!counts[r.empleado]) counts[r.empleado] = { total: 0, completo: 0, segundo: 0, llevar: 0, conf: 0 };
+    counts[r.empleado].total++;
+    if (r.tipo === 'completo')      counts[r.empleado].completo++;
+    if (r.tipo === 'segundo')       counts[r.empleado].segundo++;
+    if (r.modalidad === 'llevar')   counts[r.empleado].llevar++;
+    if (r.asistio)                  counts[r.empleado].conf++;
+  });
+
+  freqData = Object.entries(counts).sort((a, b) => b[1].total - a[1].total);
+  const maxVal = freqData[0]?.[1]?.total || 1;
+
+  const totalPedidos = rows.length;
+  const diasActivos  = new Set(rows.map(r => r.fecha)).size;
+  const sinPedido    = EMPLEADOS.filter(e => !counts[e] || counts[e].total === 0).length;
+  const masActivo    = freqData[0]?.[0] || '—';
+
+  document.getElementById('summary-freq').innerHTML = `
+    <div class="scard c-total"><div class="scard-num">${totalPedidos}</div><div class="scard-label">Pedidos en el mes</div></div>
+    <div class="scard c-ahi"><div class="scard-num">${diasActivos}</div><div class="scard-label">Días con registros</div></div>
+    <div class="scard c-pend"><div class="scard-num">${sinPedido}</div><div class="scard-label">Sin pedidos el mes</div></div>
+    <div class="scard c-conf"><div class="scard-num">${totalPedidos > 0 ? Math.round(totalPedidos / diasActivos) : 0}</div><div class="scard-label">Promedio diario</div></div>
+  `;
+
+  renderFreq(freqData, maxVal);
+  window._freqMaxVal = maxVal;
+}
+
+function renderFreq(data, maxVal) {
+  if (!data.length) {
+    document.getElementById('freq-grid-wrap').innerHTML =
+      `<div class="empty"><div class="empty-ico">📊</div>Sin datos</div>`;
+    return;
+  }
+  document.getElementById('freq-grid-wrap').innerHTML = `
+    <div class="freq-grid">
+      ${data.map(([nombre, c]) => {
+        const pct = maxVal > 0 ? Math.round(c.total / maxVal * 100) : 0;
+        const isZero = c.total === 0;
+        return `
+          <div class="freq-card" style="${isZero ? 'opacity:.45' : ''}">
+            <div class="freq-name">${nombre}</div>
+            <div class="freq-bar-wrap">
+              <div class="freq-bar" style="width:${pct}%"></div>
+            </div>
+            <div class="freq-count">${c.total}</div>
+          </div>`;
+      }).join('')}
+    </div>`;
+}
+
+function filtrarFreq(q) {
+  const filtered = freqData.filter(([n]) => n.toLowerCase().includes(q.toLowerCase()));
+  renderFreq(filtered, window._freqMaxVal || 1);
+}
+
+// ════════════════════════════
+// HISTORIAL
+// ════════════════════════════
+async function cargarHistorial() {
+  const mes = document.getElementById('f-hist-mes').value;
+  if (!mes) return;
+  const [y, m] = mes.split('-');
+  document.getElementById('hist-wrap').innerHTML =
+    `<div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div>`;
+
+  const { data } = await db.from('almuerzos').select('*')
+    .gte('fecha', `${y}-${m}-01`).lte('fecha', `${y}-${m}-31`).order('fecha');
+  const rows = data || [];
+
+  if (!rows.length) {
+    document.getElementById('hist-wrap').innerHTML =
+      `<div class="empty"><div class="empty-ico">📅</div>Sin registros este mes</div>`;
+    return;
+  }
+
+  // Group by date
+  const byDate = {};
+  rows.forEach(r => {
+    if (!byDate[r.fecha]) byDate[r.fecha] = { total: 0, completo: 0, segundo: 0, llevar: 0, conf: 0, flag: 0 };
+    byDate[r.fecha].total++;
+    if (r.tipo === 'completo')    byDate[r.fecha].completo++;
+    if (r.tipo === 'segundo')     byDate[r.fecha].segundo++;
+    if (r.modalidad === 'llevar') byDate[r.fecha].llevar++;
+    if (r.asistio)                byDate[r.fecha].conf++;
+    if (r.asistio_flag)           byDate[r.fecha].flag++;
+  });
+
+  const total  = rows.length;
+  const conf   = rows.filter(r => r.asistio).length;
+  const llevar = rows.filter(r => r.modalidad === 'llevar').length;
+  const dias   = Object.keys(byDate).length;
+
+  document.getElementById('summary-hist').innerHTML = `
+    <div class="scard c-total"><div class="scard-num">${total}</div><div class="scard-label">Total del mes</div></div>
+    <div class="scard c-ahi"><div class="scard-num">${conf}</div><div class="scard-label">Confirmados</div></div>
+    <div class="scard c-llevar"><div class="scard-num">${llevar}</div><div class="scard-label">Para llevar</div></div>
+    <div class="scard c-conf"><div class="scard-num">${dias}</div><div class="scard-label">Días activos</div></div>
+    <div class="scard c-pend"><div class="scard-num">${total > 0 ? Math.round(total/dias) : 0}</div><div class="scard-label">Prom. diario</div></div>
+  `;
+
+  document.getElementById('hist-wrap').innerHTML = `
+    <div class="day-cards">
+      ${Object.entries(byDate).sort().map(([fecha, c]) => `
+        <div class="day-card">
+          <div class="day-date">${fechaDisplay(fecha)}</div>
+          <div class="day-pills">
+            <span class="pill pill-completo">🍱 ${c.completo}</span>
+            <span class="pill pill-segundo">🍛 ${c.segundo}</span>
+            ${c.llevar ? `<span class="pill pill-llevar">🥡 ${c.llevar}</span>` : ''}
+            <span class="pill pill-confirmed">✅ ${c.conf}/${c.total}</span>
+            ${c.flag ? `<span class="pill" style="background:rgba(217,119,6,.2);color:var(--warning);">⚠️ ${c.flag}</span>` : ''}
+          </div>
+        </div>`).join('')}
+    </div>`;
+}
+
+// ════════════════════════════
+// EXPORTS
+// ════════════════════════════
+async function exportHoy() {
+  const fecha = document.getElementById('f-hoy').value || fechaHoy();
+  const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  if (!data?.length) { alert('Sin datos.'); return; }
+  const h = ['#','Empleado','Tipo usuario','Modalidad','Tipo','Sopa','Plato','Postre','Bebida','Recogedor','Hora','Asistio','Hora confirmación'];
+  const rows = data.map((r, i) => [
+    i+1, r.empleado, r.tipo_user, r.modalidad, r.tipo||'',
+    r.llevar_sopa ?? '', r.llevar_plato || '', r.llevar_postre ?? '', r.llevar_bebida || '', r.recogedor || '',
+    horaDisplay(r.hora),
+    r.asistio ? 'Sí' : 'No',
+    r.asistio_marcado ? horaDisplay(r.asistio_marcado) : ''
+  ]);
+  dlCSV([h, ...rows], `supervisor-${fecha}.csv`);
+}
+
+async function exportAsist() {
+  const fecha = document.getElementById('f-asist').value || fechaHoy();
+  const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  if (!data?.length) { alert('Sin datos.'); return; }
+  const h = ['#','Empleado','Modalidad','Tipo','Registro','Confirmado','Hora confirmación','Flag'];
+  const rows = data.map((r, i) => [
+    i+1, r.empleado, r.modalidad, r.tipo||'',
+    horaDisplay(r.hora),
+    r.asistio ? 'Sí' : 'No',
+    r.asistio_marcado ? horaDisplay(r.asistio_marcado) : '',
+    r.asistio_flag ? 'Pendiente revisión' : ''
+  ]);
+  dlCSV([h, ...rows], `supervisor-asistencia-${fecha}.csv`);
+}
+
+async function exportFreq() {
+  const mes = document.getElementById('f-freq-mes').value;
+  if (!mes || !freqData.length) { alert('Sin datos.'); return; }
+  const h = ['#','Empleado','Total pedidos','Completos','Segundos','Para llevar','Confirmados'];
+  const rows = freqData.map(([n, c], i) => [i+1, n, c.total, c.completo, c.segundo, c.llevar, c.conf]);
+  dlCSV([h, ...rows], `supervisor-frecuencia-${mes}.csv`);
+}
+
+async function exportMes() {
+  const mes = document.getElementById('f-hist-mes').value;
+  if (!mes) return;
+  const [y, m] = mes.split('-');
+  const { data } = await db.from('almuerzos').select('*')
+    .gte('fecha', `${y}-${m}-01`).lte('fecha', `${y}-${m}-31`).order('fecha').order('hora');
+  if (!data?.length) { alert('Sin datos.'); return; }
+  const h = ['#','Empleado','Modalidad','Tipo','Fecha','Hora','Asistio'];
+  const rows = data.map((r, i) => [i+1, r.empleado, r.modalidad, r.tipo||'', r.fecha, horaDisplay(r.hora), r.asistio?'Sí':'No']);
+  dlCSV([h, ...rows], `supervisor-historial-${mes}.csv`);
+}
+
+function dlCSV(rows, name) {
+  const csv = rows.map(r => r.map(c => `"${String(c??'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'}));
+  a.download = name; a.click();
+}
+</script>
+</body>
+</html>

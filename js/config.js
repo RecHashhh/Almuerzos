@@ -23,7 +23,8 @@ const CONFIG = {
   // ⚠️ CAMBIAR ANTES DE PUBLICAR
   usuarios: {
     admin:  { password: 'Admin2026!',  rol: 'admin'  },
-    cocina: { password: 'Cocina2026!', rol: 'cocina' }
+    cocina: { password: 'Cocina2026!', rol: 'cocina' },
+    supervisor: { password: 'Supervisor2026!', rol: 'supervisor' }
   },
 
   timezone:        'America/Guayaquil',

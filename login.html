@@ -21,7 +21,7 @@ body.dark::before{content:'';position:fixed;inset:0;
 .brand p{color:var(--muted);font-size:.82rem;margin-top:4px;}
 .login-card{background:var(--card);border:1px solid var(--border);border-radius:20px;
   padding:28px;box-shadow:var(--shadow-lg);}
-.role-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:22px;
+.role-tabs{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:22px;
   background:var(--surface);padding:6px;border-radius:14px;}
 .role-tab{padding:10px;border-radius:10px;border:none;background:transparent;color:var(--muted);
   font-family:'Plus Jakarta Sans',sans-serif;font-size:.82rem;font-weight:600;cursor:pointer;
@@ -44,8 +44,9 @@ body.dark::before{content:'';position:fixed;inset:0;
   </div>
   <div class="login-card">
     <div class="role-tabs">
-      <button class="role-tab active" id="tab-admin"  onclick="setRol('admin')">📊 Administrador</button>
-      <button class="role-tab"        id="tab-cocina" onclick="setRol('cocina')">🍽️ Cocina</button>
+      <button class="role-tab active" id="tab-admin"      onclick="setRol('admin')">📊 Admin</button>
+      <button class="role-tab"        id="tab-supervisor" onclick="setRol('supervisor')">👁️ Supervisor</button>
+      <button class="role-tab"        id="tab-cocina"     onclick="setRol('cocina')">🍽️ Cocina</button>
     </div>
     <div class="role-hint" id="role-hint">
       <strong>Administrador:</strong> reportes, historial, gestión de invitados y validación de checks.
@@ -67,17 +68,22 @@ body.dark::before{content:'';position:fixed;inset:0;
 <script>
 let rolActual='admin';
 const p=new URLSearchParams(window.location.search);
-if(p.get('rol')==='cocina') setRol('cocina');
+if(p.get('rol')==='cocina')      setRol('cocina');
+if(p.get('rol')==='supervisor')  setRol('supervisor');
+
+const HINTS = {
+  admin:      '<strong>Administrador:</strong> reportes, historial, gestión de invitados y validación de checks.',
+  supervisor: '<strong>Supervisor:</strong> conteos del día, historial del mes, asistencia y exportación. Solo lectura.',
+  cocina:     '<strong>Cocina:</strong> vista en tiempo real, confirmar asistencia y pedidos para llevar.',
+};
+
 function setRol(r){
   rolActual=r;
-  document.getElementById('tab-admin').classList.toggle('active',r==='admin');
-  document.getElementById('tab-cocina').classList.toggle('active',r==='cocina');
+  ['admin','supervisor','cocina'].forEach(t=>
+    document.getElementById('tab-'+t).classList.toggle('active',t===r));
   document.getElementById('alert-err').classList.remove('show');
   document.getElementById('inp-user').placeholder=r;
-  const h=document.getElementById('role-hint');
-  h.innerHTML=r==='admin'
-    ?'<strong>Administrador:</strong> reportes, historial, gestión de invitados y validación de checks.'
-    :'<strong>Cocina:</strong> vista en tiempo real, confirmar asistencia y pedidos para llevar.';
+  document.getElementById('role-hint').innerHTML=HINTS[r]||'';
 }
 function login(){
   const u=document.getElementById('inp-user').value.trim().toLowerCase();
@@ -85,7 +91,8 @@ function login(){
   const match=Object.entries(CONFIG.usuarios).find(([k,d])=>k.toLowerCase()===u&&d.password===p&&d.rol===rolActual);
   if(!match){document.getElementById('alert-err').classList.add('show');document.getElementById('inp-pass').value='';return;}
   setSession(rolActual);
-  window.location.href=rolActual==='admin'?'admin.html':'cocina.html';
+  const dest={admin:'admin.html',supervisor:'supervisor.html',cocina:'cocina.html'};
+  window.location.href=dest[rolActual]||'login.html';
 }
 </script>
 </body></html>

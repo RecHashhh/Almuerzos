@@ -94,6 +94,35 @@
 
 @keyframes flashGreen{from{background:#dcfce7}to{background:transparent}}
 .check-item.flash-green{animation:flashGreen 1.2s ease;}
+
+/* Modal de cargo extra */
+.extra-modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+  z-index:1000;align-items:center;justify-content:center;}
+.extra-modal-overlay.active{display:flex;}
+.extra-modal-card{background:#fff;border:1px solid var(--border);border-radius:18px;
+  padding:28px;max-width:380px;width:90%;box-shadow:0 20px 40px rgba(0,0,0,.15);}
+.extra-modal-title{font-family:'Syne',sans-serif;font-size:1.2rem;font-weight:800;margin-bottom:20px;}
+.extra-form-group{margin-bottom:18px;}
+.extra-form-label{font-size:.85rem;font-weight:600;color:var(--text);margin-bottom:8px;display:block;}
+.extra-form-input{width:100%;padding:12px 14px;border:1px solid var(--border);border-radius:10px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:.95rem;outline:none;}
+.extra-form-input:focus{border-color:#E8500A;box-shadow:0 0 0 3px rgba(232,80,10,.1);}
+.extra-radio-group{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px;}
+.extra-radio-btn{padding:12px;border:2px solid var(--border);border-radius:10px;
+  background:#f9f5f2;cursor:pointer;text-align:center;font-weight:600;font-size:.85rem;
+  transition:all .2s;}
+.extra-radio-btn.selected{background:#FFF4F0;border-color:#E8500A;color:#E8500A;}
+.extra-btn-group{display:flex;gap:10px;margin-top:22px;}
+.extra-btn{flex:1;padding:12px;border:none;border-radius:10px;font-family:'Syne',sans-serif;
+  font-weight:700;cursor:pointer;transition:all .2s;}
+.extra-btn-save{background:#E8500A;color:#fff;}
+.extra-btn-save:hover{background:#D43E00;}
+.extra-btn-cancel{background:var(--surface);color:var(--text);}
+.extra-btn-cancel:hover{background:var(--border);}
+.extra-btn-delete{background:#EF4444;color:#fff;font-size:.8rem;}
+.extra-btn-delete:hover{background:#DC2626;}
+
+@keyframes flashGreen{from{background:#dcfce7}to{background:transparent}}
 @media(max-width:520px){.totals-row{grid-template-columns:1fr 1fr;}}
 </style>
 </head>
@@ -159,6 +188,33 @@
   </div>
 
   <button class="wa-btn" onclick="enviarWA()">💬 Enviar resumen por WhatsApp</button>
+
+  <!-- Modal: Cargo Extra -->
+  <div class="extra-modal-overlay" id="extraModal">
+    <div class="extra-modal-card">
+      <div class="extra-modal-title">💰 Registrar Cargo Extra</div>
+      <div class="extra-form-group">
+        <label class="extra-form-label">Empleado</label>
+        <div style="font-size:.95rem;font-weight:600;color:var(--text);" id="extraEmpleado">—</div>
+      </div>
+      <div class="extra-form-group">
+        <label class="extra-form-label">Monto ($)</label>
+        <input type="number" class="extra-form-input" id="extraMonto" placeholder="1.50" min="0" step="0.01">
+      </div>
+      <div class="extra-form-group">
+        <label class="extra-form-label">¿Fue pagado?</label>
+        <div class="extra-radio-group">
+          <div class="extra-radio-btn" id="extraPaidNo" onclick="selectExtraPaid(false)">❌ Pendiente</div>
+          <div class="extra-radio-btn selected" id="extraPaidYes" onclick="selectExtraPaid(true)">✅ Pagado</div>
+        </div>
+      </div>
+      <div class="extra-btn-group">
+        <button class="extra-btn extra-btn-save" onclick="saveCargoExtra()">Guardar</button>
+        <button class="extra-btn extra-btn-cancel" onclick="closeExtraModal()">Cancelar</button>
+      </div>
+      <button class="extra-btn extra-btn-delete" style="width:100%;margin-top:10px;" id="extraDeleteBtn" onclick="deleteCargoExtra()" style="display:none;">Eliminar cargo extra</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -261,8 +317,10 @@ function renderList(items, containerId) {
             ${flagNote}
           </div>
           ${llevarDetail}
+          ${r.modalidad === 'ahi' && r.cargo_extra_monto ? `<div style="margin-top:8px;padding:10px;background:rgba(232,80,10,.1);border-radius:8px;font-size:.8rem;"><strong>💰 Cargo extra:</strong> $${r.cargo_extra_monto} ${r.cargo_extra_pagado ? '✅ Pagado' : '❌ Pendiente'}</div>` : ''}
         </div>
-        <div style="display:flex;flex-direction:column;align-items:center;">
+        <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
+          ${r.modalidad === 'ahi' ? `<button style="width:42px;height:42px;border-radius:12px;border:2px solid var(--border);background:rgba(232,80,10,.1);cursor:pointer;font-size:.9rem;transition:all .2s;" onclick="openExtraModal('${r.id}', '${r.empleado}', ${r.cargo_extra_monto || 'null'}, ${r.cargo_extra_pagado || false})" title="Registrar cargo extra">💰</button>` : ''}
           <button class="check-btn ${checkClass}" onclick="toggleCheck('${r.id}', ${isConf}, ${isFlagged})"
             title="${isConf ? 'Desmarcar asistencia' : 'Confirmar asistencia'}">
             ${checkIcon}
@@ -326,6 +384,78 @@ async function enviarWA() {
   }
   window.open('https://wa.me/?text='+encodeURIComponent(msg), '_blank');
 }
+
+// ════════════════════════════
+// CARGO EXTRA MODAL
+// ════════════════════════════
+let currentExtraRecordId = null;
+let currentExtraRecordPaid = false;
+
+function openExtraModal(recordId, empleado, monto, pagado) {
+  currentExtraRecordId = recordId;
+  currentExtraRecordPaid = pagado;
+  
+  document.getElementById('extraEmpleado').textContent = empleado;
+  document.getElementById('extraMonto').value = monto || '';
+  
+  document.getElementById('extraPaidYes').classList.toggle('selected', pagado || false);
+  document.getElementById('extraPaidNo').classList.toggle('selected', !pagado || false);
+  
+  document.getElementById('extraDeleteBtn').style.display = monto ? 'block' : 'none';
+  
+  document.getElementById('extraModal').classList.add('active');
+}
+
+function closeExtraModal() {
+  document.getElementById('extraModal').classList.remove('active');
+  currentExtraRecordId = null;
+}
+
+function selectExtraPaid(paid) {
+  currentExtraRecordPaid = paid;
+  document.getElementById('extraPaidYes').classList.toggle('selected', paid);
+  document.getElementById('extraPaidNo').classList.toggle('selected', !paid);
+}
+
+async function saveCargoExtra() {
+  if (!currentExtraRecordId) return;
+  
+  const monto = document.getElementById('extraMonto').value.trim();
+  if (!monto || parseFloat(monto) <= 0) {
+    alert('Por favor ingresa un monto válido');
+    return;
+  }
+
+  const update = {
+    cargo_extra_monto: parseFloat(monto),
+    cargo_extra_pagado: currentExtraRecordPaid
+  };
+
+  await db.from('almuerzos').update(update).eq('id', currentExtraRecordId);
+  await cargar();
+  closeExtraModal();
+}
+
+async function deleteCargoExtra() {
+  if (!currentExtraRecordId || !confirm('¿Eliminar cargo extra?')) return;
+  
+  const update = {
+    cargo_extra_monto: null,
+    cargo_extra_pagado: false
+  };
+
+  await db.from('almuerzos').update(update).eq('id', currentExtraRecordId);
+  await cargar();
+  closeExtraModal();
+}
+
+// Close modal on overlay click
+document.addEventListener('DOMContentLoaded', () => {
+  const modal = document.getElementById('extraModal');
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeExtraModal();
+  });
+});
 </script>
 </body>
 </html>

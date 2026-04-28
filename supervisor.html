@@ -119,6 +119,26 @@ tr:hover td{background:rgba(255,255,255,.025);}
   font-size:.84rem;outline:none;margin-bottom:14px;}
 .search-in:focus{border-color:#2563EB;}
 
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);
+  z-index:1000;align-items:center;justify-content:center;}
+.modal-overlay.active{display:flex;}
+.modal-card{background:var(--card);border:1px solid var(--border);border-radius:20px;
+  padding:28px;max-width:420px;width:90%;max-height:80vh;overflow-y:auto;
+  position:relative;animation:modalIn .2s ease;}
+@keyframes modalIn{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:scale(1)}}
+.modal-close{position:absolute;top:16px;right:16px;background:none;border:none;
+  font-size:1.5rem;cursor:pointer;color:var(--muted);transition:color .2s;}
+.modal-close:hover{color:var(--text);}
+.modal-title{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;margin-bottom:20px;padding-right:28px;}
+.modal-row{display:flex;justify-content:space-between;align-items:center;
+  padding:14px 0;border-bottom:1px solid var(--border);}
+.modal-row:last-child{border-bottom:none;}
+.modal-key{font-size:.84rem;color:var(--muted);font-weight:600;}
+.modal-val{font-size:.95rem;font-weight:500;text-align:right;}
+.freq-card{cursor:pointer;transition:all .2s;}
+.freq-card:hover{background:rgba(37,99,235,.1);border-color:#2563EB;}
+
 @media(max-width:580px){
   .main{padding:16px 12px;}
   .summary-row{grid-template-columns:1fr 1fr 1fr;}
@@ -269,6 +289,15 @@ tr:hover td{background:rgba(255,255,255,.025);}
     <div class="summary-row" id="summary-hist" style="margin-bottom:18px;"></div>
     <div id="hist-wrap">
       <div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div>
+    </div>
+  </div>
+
+  <!-- ─── MODAL: DETALLE DE EMPLEADO ─── -->
+  <div class="modal-overlay" id="detail-modal">
+    <div class="modal-card">
+      <button class="modal-close" onclick="closeDetailModal()">✕</button>
+      <div class="modal-title" id="modal-empleado">—</div>
+      <div id="modal-content"></div>
     </div>
   </div>
 
@@ -440,20 +469,31 @@ async function cargarFrecuencia() {
   document.getElementById('freq-grid-wrap').innerHTML =
     `<div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div>`;
 
-  const { data } = await db.from('almuerzos').select('empleado,tipo,modalidad,asistio')
+  const { data } = await db.from('almuerzos').select('empleado,tipo,modalidad,asistio,cargo_extra_monto,cargo_extra_pagado')
     .gte('fecha', `${y}-${m}-01`).lte('fecha', `${y}-${m}-31`);
   const rows = data || [];
 
+  // Get unique employees from actual records
+  const uniqueEmpleados = [...new Set(rows.map(r => r.empleado))].sort();
+
   // Count per employee
   const counts = {};
-  EMPLEADOS.forEach(e => counts[e] = { total: 0, completo: 0, segundo: 0, llevar: 0, conf: 0 });
+  uniqueEmpleados.forEach(e => counts[e] = { total: 0, completo: 0, segundo: 0, llevar: 0, conf: 0, extras: [], extrasPagados: [], extrasNoConfirmados: [] });
   rows.forEach(r => {
-    if (!counts[r.empleado]) counts[r.empleado] = { total: 0, completo: 0, segundo: 0, llevar: 0, conf: 0 };
+    if (!counts[r.empleado]) counts[r.empleado] = { total: 0, completo: 0, segundo: 0, llevar: 0, conf: 0, extras: [], extrasPagados: [], extrasNoConfirmados: [] };
     counts[r.empleado].total++;
-    if (r.tipo === 'completo')      counts[r.empleado].completo++;
-    if (r.tipo === 'segundo')       counts[r.empleado].segundo++;
-    if (r.modalidad === 'llevar')   counts[r.empleado].llevar++;
-    if (r.asistio)                  counts[r.empleado].conf++;
+    if (r.tipo === 'completo')           counts[r.empleado].completo++;
+    if (r.tipo === 'segundo')            counts[r.empleado].segundo++;
+    if (r.modalidad === 'llevar')        counts[r.empleado].llevar++;
+    if (r.asistio)                       counts[r.empleado].conf++;
+    if (r.cargo_extra_monto) {
+      const monto = parseFloat(r.cargo_extra_monto);
+      counts[r.empleado].extras.push(monto);
+      if (r.cargo_extra_pagado)
+        counts[r.empleado].extrasPagados.push(monto);
+      else
+        counts[r.empleado].extrasNoConfirmados.push(monto);
+    }
   });
 
   freqData = Object.entries(counts).sort((a, b) => b[1].total - a[1].total);
@@ -461,13 +501,12 @@ async function cargarFrecuencia() {
 
   const totalPedidos = rows.length;
   const diasActivos  = new Set(rows.map(r => r.fecha)).size;
-  const sinPedido    = EMPLEADOS.filter(e => !counts[e] || counts[e].total === 0).length;
-  const masActivo    = freqData[0]?.[0] || '—';
+  const uniqueEmpleadosCount = uniqueEmpleados.length;
 
   document.getElementById('summary-freq').innerHTML = `
     <div class="scard c-total"><div class="scard-num">${totalPedidos}</div><div class="scard-label">Pedidos en el mes</div></div>
     <div class="scard c-ahi"><div class="scard-num">${diasActivos}</div><div class="scard-label">Días con registros</div></div>
-    <div class="scard c-pend"><div class="scard-num">${sinPedido}</div><div class="scard-label">Sin pedidos el mes</div></div>
+    <div class="scard c-pend"><div class="scard-num">${uniqueEmpleadosCount}</div><div class="scard-label">Empleados activos</div></div>
     <div class="scard c-conf"><div class="scard-num">${totalPedidos > 0 ? Math.round(totalPedidos / diasActivos) : 0}</div><div class="scard-label">Promedio diario</div></div>
   `;
 
@@ -487,7 +526,7 @@ function renderFreq(data, maxVal) {
         const pct = maxVal > 0 ? Math.round(c.total / maxVal * 100) : 0;
         const isZero = c.total === 0;
         return `
-          <div class="freq-card" style="${isZero ? 'opacity:.45' : ''}">
+          <div class="freq-card" style="${isZero ? 'opacity:.45' : 'cursor:pointer'}" onclick="showDetailModal('${nombre}', ${JSON.stringify(c).replace(/"/g, '&quot;')})">
             <div class="freq-name">${nombre}</div>
             <div class="freq-bar-wrap">
               <div class="freq-bar" style="width:${pct}%"></div>
@@ -623,6 +662,77 @@ function dlCSV(rows, name) {
   a.href = URL.createObjectURL(new Blob(['\ufeff'+csv], {type:'text/csv;charset=utf-8;'}));
   a.download = name; a.click();
 }
+
+// ════════════════════════════
+// MODAL: DETALLES DE EMPLEADO
+// ════════════════════════════
+function showDetailModal(empleado, counts) {
+  const modal = document.getElementById('detail-modal');
+  document.getElementById('modal-empleado').textContent = '👤 ' + empleado;
+  
+  const totalExtra = counts.extras && counts.extras.length > 0 ? counts.extras.reduce((a,b)=>a+b,0).toFixed(2) : '0.00';
+  const promExtra = counts.extras && counts.extras.length > 0 ? (counts.extras.reduce((a,b)=>a+b,0)/counts.extras.length).toFixed(2) : '0.00';
+  const totalPagado = counts.extrasPagados && counts.extrasPagados.length > 0 ? counts.extrasPagados.reduce((a,b)=>a+b,0).toFixed(2) : '0.00';
+  const totalPendiente = counts.extrasNoConfirmados && counts.extrasNoConfirmados.length > 0 ? counts.extrasNoConfirmados.reduce((a,b)=>a+b,0).toFixed(2) : '0.00';
+  
+  const contentHTML = `
+    <div class="modal-row">
+      <span class="modal-key">📊 Total de pedidos</span>
+      <span class="modal-val" style="font-family:'Syne',sans-serif;font-size:1.3rem;color:#3B82F6;font-weight:800">${counts.total}</span>
+    </div>
+    <div class="modal-row">
+      <span class="modal-key">🍱 Completos</span>
+      <span class="modal-val">${counts.completo}</span>
+    </div>
+    <div class="modal-row">
+      <span class="modal-key">🍛 Solo Segundo</span>
+      <span class="modal-val">${counts.segundo}</span>
+    </div>
+    <div class="modal-row">
+      <span class="modal-key">🥡 Para llevar</span>
+      <span class="modal-val">${counts.llevar}</span>
+    </div>
+    <div class="modal-row">
+      <span class="modal-key">✅ Confirmados</span>
+      <span class="modal-val">${counts.conf}</span>
+    </div>
+    ${counts.extras && counts.extras.length > 0 ? `
+    <div style="border-top:2px solid var(--border);margin-top:12px;padding-top:12px;">
+      <div class="modal-row">
+        <span class="modal-key">💰 Total cargos extras</span>
+        <span class="modal-val" style="color:#F59E0B;font-weight:700">$${totalExtra}</span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-key">✅ Pagados</span>
+        <span class="modal-val" style="color:#22C55E;font-weight:700">$${totalPagado}</span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-key">⏳ Pendientes</span>
+        <span class="modal-val" style="color:#EF4444;font-weight:700">$${totalPendiente}</span>
+      </div>
+      <div class="modal-row">
+        <span class="modal-key">💵 Promedio cargo</span>
+        <span class="modal-val">$${promExtra}</span>
+      </div>
+    </div>
+    ` : ''}
+  `;
+  
+  document.getElementById('modal-content').innerHTML = contentHTML;
+  modal.classList.add('active');
+}
+
+function closeDetailModal() {
+  document.getElementById('detail-modal').classList.remove('active');
+}
+
+// Close modal when clicking overlay
+document.addEventListener('DOMContentLoaded', () => {
+  const modal = document.getElementById('detail-modal');
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) closeDetailModal();
+  });
+});
 </script>
 </body>
 </html>

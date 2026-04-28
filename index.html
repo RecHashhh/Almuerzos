@@ -262,6 +262,16 @@ footer{margin-top:22px;font-size:.72rem;color:var(--muted);text-align:center;}
             </div>
           </div>
         </div>
+
+        <!-- Cargo extra (opcional) - Solo visible para "comer aquí" -->
+        <div class="form-group">
+          <label class="form-label">💰 Cargo extra (opcional)</label>
+          <input type="number" class="form-input" id="cargo-extra-monto" step="0.01" min="0"
+            placeholder="Ej: 1, 1.25, 2..." style="font-size:0.9rem;">
+          <div style="font-size:.75rem;color:var(--muted);margin-top:6px;">
+            Si el plato que pediste fue más caro que el estándar, la cocina puede marcar un cargo extra.
+          </div>
+        </div>
       </div>
 
       <!-- Para llevar form -->
@@ -303,6 +313,13 @@ footer{margin-top:22px;font-size:.72rem;color:var(--muted);text-align:center;}
             <label>🧃 Bebida</label>
             <input type="text" class="form-input" id="llevar-bebida"
               placeholder="Ej: Jugo de naranja, agua..." oninput="onLlevarChange()">
+          </div>
+
+          <!-- Extra/Cargo adicional -->
+          <div class="llevar-field">
+            <label>💰 Cargo extra (opcional)</label>
+            <input type="number" class="form-input" id="llevar-extra" step="0.01" min="0"
+              placeholder="Ej: 1, 1.25, 2..." oninput="onLlevarChange()" style="font-size:0.9rem;">
           </div>
 
           <!-- Quién recoge -->
@@ -566,6 +583,11 @@ async function registrar() {
     hora:       new Date().toISOString(),
     modalidad:  selectedModality,       // ahi | llevar
     tipo:       selectedModality==='ahi' ? selectedTipo : 'llevar',
+    // cargo extra (ambas modalidades)
+    cargo_extra_monto: selectedModality==='ahi' 
+      ? (document.getElementById('cargo-extra-monto').value.trim() || null)
+      : (document.getElementById('llevar-extra').value.trim() || null),
+    cargo_extra_pagado: false,  // Por defecto pendiente
     // llevar fields
     llevar_sopa:   selectedModality==='llevar' ? document.getElementById('llevar-sopa').checked : null,
     llevar_plato:  selectedModality==='llevar' ? document.getElementById('llevar-plato').value.trim() : null,
@@ -607,6 +629,15 @@ function showSuccess(rec) {
   if (rec.modalidad === 'ahi') {
     tipoRow.style.display = 'flex';
     document.getElementById('suc-tipo').textContent = rec.tipo==='completo' ? '🍱 Almuerzo Completo' : '🍛 Solo Segundo';
+    // Para "comer aquí" también mostrar cargo extra si existe
+    let extraHTML = '';
+    if (rec.cargo_extra_monto) {
+      extraHTML = `<div class="receipt-row">
+        <span class="receipt-key">Cargo extra</span>
+        <span class="receipt-val">$${rec.cargo_extra_monto} (Pendiente pago)</span>
+      </div>`;
+    }
+    document.getElementById('suc-llevar-rows').innerHTML = extraHTML;
   } else {
     tipoRow.style.display = 'none';
     // Build llevar rows
@@ -615,6 +646,7 @@ function showSuccess(rec) {
       ['Plato principal', rec.llevar_plato],
       ['Postre',         rec.llevar_postre ? '✅ Sí' : '❌ No'],
       ['Bebida',         rec.llevar_bebida],
+      ...(rec.cargo_extra_monto ? [['Cargo extra', '$' + rec.cargo_extra_monto]] : []),
       ['Recoge',         rec.recogedor],
     ];
     document.getElementById('suc-llevar-rows').innerHTML = rows.map(([k,v]) => `
@@ -638,8 +670,10 @@ function resetForm() {
   document.getElementById('btn-submit').disabled = true;
   document.getElementById('btn-submit').innerHTML = 'Confirmar Registro';
   document.getElementById('suc-llevar-rows').innerHTML = '';
+  document.getElementById('cargo-extra-monto').value = '';
   document.getElementById('llevar-plato').value  = '';
   document.getElementById('llevar-bebida').value = '';
+  document.getElementById('llevar-extra').value  = '';
   document.getElementById('llevar-sopa').checked   = true;
   document.getElementById('llevar-postre').checked = true;
   setRecogedor('yo');

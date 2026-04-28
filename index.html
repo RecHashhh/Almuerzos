@@ -2,328 +2,163 @@
 <html lang="es">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 <title>Ripconciv — Registro de Almuerzo</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@3.10.0/lib/msal-browser.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
+<link rel="stylesheet" href="js/shared.css">
 <style>
-  :root {
-    --brand:       #E8500A;
-    --brand-dark:  #BF3D04;
-    --brand-light: #FF7040;
-    --bg:          #F7F4F0;
-    --surface:     #FFFFFF;
-    --card:        #FFFFFF;
-    --border:      #E2DDD8;
-    --text:        #1A1714;
-    --muted:       #8C857D;
-    --success:     #1A9E5C;
-    --warning:     #D97706;
-    --error:       #DC2626;
-    --shadow:      0 2px 16px rgba(26,23,20,0.08);
-    --shadow-lg:   0 8px 40px rgba(26,23,20,0.14);
-  }
+body{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
+  padding:24px 16px 40px;min-height:100dvh;}
+body::before{content:'';position:fixed;inset:0;
+  background:radial-gradient(circle 600px at 80% -10%,rgba(232,80,10,.08) 0%,transparent 60%),
+             radial-gradient(circle 400px at -10% 80%,rgba(232,80,10,.05) 0%,transparent 60%);
+  pointer-events:none;}
 
-  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+.logo-bar{display:flex;align-items:center;gap:10px;margin-bottom:24px;}
+.logo-mark{width:38px;height:38px;background:linear-gradient(135deg,var(--brand-dark),var(--brand-light));
+  border-radius:11px;display:flex;align-items:center;justify-content:center;font-size:1.1rem;
+  box-shadow:0 4px 14px rgba(232,80,10,.3);}
+.logo-text{font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;}
+.logo-text span{color:var(--brand);}
 
-  body {
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    min-height: 100dvh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 24px 16px;
-  }
+/* ── Main card ── */
+.main-card{width:100%;max-width:440px;background:var(--card);border:1px solid var(--border);
+  border-radius:24px;box-shadow:var(--shadow-lg);overflow:hidden;}
+.card-banner{background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 55%,var(--brand-light) 100%);
+  padding:26px 28px 22px;position:relative;overflow:hidden;}
+.card-banner::after{content:'🍽️';position:absolute;right:-6px;bottom:-14px;
+  font-size:5.5rem;opacity:.12;transform:rotate(-10deg);}
+.card-banner h1{font-family:'Syne',sans-serif;font-size:1.45rem;font-weight:800;color:#fff;margin-bottom:6px;}
+.fecha-chip{display:inline-flex;align-items:center;gap:6px;
+  background:rgba(255,255,255,.2);backdrop-filter:blur(4px);
+  color:#fff;padding:5px 12px;border-radius:20px;font-size:.8rem;font-weight:500;}
 
-  /* Geometric background */
-  body::before {
-    content: '';
-    position: fixed; inset: 0;
-    background:
-      radial-gradient(circle 600px at 80% -10%, rgba(232,80,10,0.08) 0%, transparent 60%),
-      radial-gradient(circle 400px at -10% 80%, rgba(232,80,10,0.05) 0%, transparent 60%);
-    pointer-events: none;
-  }
+.card-body{padding:28px;}
 
-  .logo-bar {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 28px;
-  }
-  .logo-mark {
-    width: 36px; height: 36px;
-    background: linear-gradient(135deg, var(--brand-dark), var(--brand-light));
-    border-radius: 10px;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 1.1rem;
-  }
-  .logo-text {
-    font-family: 'Syne', sans-serif;
-    font-size: 1rem;
-    font-weight: 800;
-    letter-spacing: -0.01em;
-  }
-  .logo-text span { color: var(--brand); }
+/* ── Auth views ── */
+.view{display:none;} .view.show{display:block;}
 
-  /* Card */
-  .card {
-    width: 100%;
-    max-width: 420px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 24px;
-    box-shadow: var(--shadow-lg);
-    overflow: hidden;
-  }
+/* Microsoft login */
+.ms-btn{width:100%;display:flex;align-items:center;justify-content:center;gap:12px;
+  padding:14px 20px;background:#0078d4;color:#fff;border:none;border-radius:12px;
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:.95rem;font-weight:600;
+  cursor:pointer;transition:all .2s;box-shadow:0 4px 16px rgba(0,120,212,.3);}
+.ms-btn:hover{background:#106ebe;transform:translateY(-1px);}
+.ms-logo{width:20px;height:20px;display:grid;grid-template-columns:1fr 1fr;gap:2px;}
+.ms-logo span{border-radius:1px;}
+.ms-logo span:nth-child(1){background:#F25022;}
+.ms-logo span:nth-child(2){background:#7FBA00;}
+.ms-logo span:nth-child(3){background:#00A4EF;}
+.ms-logo span:nth-child(4){background:#FFB900;}
+.auth-note{text-align:center;margin-top:14px;font-size:.78rem;color:var(--muted);}
 
-  .card-top {
-    background: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 60%, var(--brand-light) 100%);
-    padding: 28px 28px 24px;
-    position: relative;
-    overflow: hidden;
-  }
-  .card-top::after {
-    content: '🍽️';
-    position: absolute;
-    right: -8px; bottom: -12px;
-    font-size: 5rem;
-    opacity: 0.15;
-    transform: rotate(-15deg);
-  }
-  .card-top h1 {
-    font-family: 'Syne', sans-serif;
-    font-size: 1.5rem;
-    font-weight: 800;
-    color: #fff;
-    margin-bottom: 6px;
-  }
-  .fecha-chip {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    background: rgba(255,255,255,0.2);
-    backdrop-filter: blur(4px);
-    color: #fff;
-    padding: 5px 12px;
-    border-radius: 20px;
-    font-size: 0.8rem;
-    font-weight: 500;
-  }
+/* Guest banner */
+.guest-banner{background:rgba(37,99,235,.07);border:1px solid rgba(37,99,235,.2);
+  border-radius:12px;padding:14px;margin-bottom:20px;font-size:.82rem;
+  color:var(--info);display:flex;gap:10px;align-items:flex-start;}
 
-  .card-body { padding: 28px; }
+/* User welcome */
+.user-welcome{display:flex;align-items:center;gap:12px;
+  background:var(--bg);border:1px solid var(--border);border-radius:12px;
+  padding:12px 14px;margin-bottom:22px;}
+.user-avatar{width:40px;height:40px;background:linear-gradient(135deg,var(--brand-dark),var(--brand-light));
+  border-radius:50%;display:flex;align-items:center;justify-content:center;
+  color:#fff;font-family:'Syne',sans-serif;font-weight:800;font-size:.95rem;flex-shrink:0;}
+.user-name{font-weight:600;font-size:.9rem;line-height:1.2;}
+.user-email{font-size:.74rem;color:var(--muted);}
 
-  /* Alert */
-  .alert {
-    display: none;
-    padding: 12px 14px;
-    border-radius: 12px;
-    font-size: 0.84rem;
-    font-weight: 500;
-    margin-bottom: 20px;
-    line-height: 1.4;
-  }
-  .alert.show { display: flex; align-items: flex-start; gap: 8px; }
-  .alert-warning { background: #FEF3C7; border: 1px solid #F59E0B; color: #92400E; }
-  .alert-error   { background: #FEE2E2; border: 1px solid #FCA5A5; color: #7F1D1D; }
+/* Modality cards */
+.modality-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:6px;}
+.modality-card{background:var(--bg);border:2px solid var(--border);border-radius:14px;
+  padding:18px 12px 14px;text-align:center;cursor:pointer;
+  transition:all .18s ease;user-select:none;}
+.modality-card:active{transform:scale(.97);}
+.modality-card.selected{border-color:var(--brand);background:#FFF4F0;
+  box-shadow:0 0 0 4px rgba(232,80,10,.08);}
+.modality-ico{font-size:2rem;margin-bottom:10px;line-height:1;}
+.modality-name{font-family:'Syne',sans-serif;font-size:.84rem;font-weight:700;line-height:1.2;}
+.modality-desc{font-size:.7rem;color:var(--muted);margin-top:4px;}
+.modality-card.selected .modality-name{color:var(--brand);}
+.modality-check{display:none;width:20px;height:20px;background:var(--brand);border-radius:50%;
+  margin:8px auto 0;align-items:center;justify-content:center;color:#fff;font-size:.7rem;}
+.modality-card.selected .modality-check{display:flex;}
 
-  /* Form */
-  .form-group { margin-bottom: 20px; }
-  .form-label {
-    display: block;
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.07em;
-    margin-bottom: 8px;
-  }
+/* Tipo almuerzo */
+.tipo-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.tipo-card{background:var(--bg);border:2px solid var(--border);border-radius:14px;
+  padding:16px 12px 12px;text-align:center;cursor:pointer;transition:all .18s ease;}
+.tipo-card:active{transform:scale(.97);}
+.tipo-card.selected{border-color:var(--brand);background:#FFF4F0;box-shadow:0 0 0 4px rgba(232,80,10,.08);}
+.tipo-card .t-ico{font-size:1.9rem;margin-bottom:8px;}
+.tipo-card .t-name{font-family:'Syne',sans-serif;font-size:.8rem;font-weight:700;line-height:1.2;}
+.tipo-card .t-desc{font-size:.69rem;color:var(--muted);margin-top:4px;}
+.tipo-card.selected .t-name{color:var(--brand);}
+.tipo-chk{display:none;width:18px;height:18px;background:var(--brand);border-radius:50%;
+  margin:6px auto 0;align-items:center;justify-content:center;color:#fff;font-size:.65rem;}
+.tipo-card.selected .tipo-chk{display:flex;}
 
-  .select-wrapper { position: relative; }
-  .select-wrapper::after {
-    content: '▾';
-    position: absolute; right: 14px; top: 50%;
-    transform: translateY(-50%);
-    color: var(--muted);
-    pointer-events: none;
-    font-size: 0.9rem;
-  }
-  select {
-    width: 100%;
-    background: var(--bg);
-    border: 1.5px solid var(--border);
-    border-radius: 12px;
-    padding: 13px 40px 13px 14px;
-    color: var(--text);
-    font-size: 0.9rem;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    outline: none;
-    appearance: none;
-    cursor: pointer;
-    transition: border-color 0.2s;
-  }
-  select:focus { border-color: var(--brand); }
+/* Llevar form */
+.llevar-form{background:rgba(139,92,246,.05);border:1px solid rgba(139,92,246,.2);
+  border-radius:14px;padding:18px;margin-top:4px;}
+.llevar-form-title{font-family:'Syne',sans-serif;font-size:.88rem;font-weight:700;
+  margin-bottom:14px;color:#7C3AED;display:flex;align-items:center;gap:6px;}
+.llevar-field{margin-bottom:14px;}
+.llevar-field:last-child{margin-bottom:0;}
+.llevar-field label{font-size:.72rem;font-weight:600;color:var(--muted);
+  text-transform:uppercase;letter-spacing:.06em;display:block;margin-bottom:6px;}
+.llevar-check-row{display:flex;align-items:center;justify-content:space-between;
+  background:var(--bg);border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;}
+.llevar-check-row span{font-size:.84rem;font-weight:500;}
+.toggle{position:relative;width:44px;height:24px;flex-shrink:0;}
+.toggle input{opacity:0;width:0;height:0;}
+.toggle-track{position:absolute;inset:0;background:var(--border);border-radius:12px;
+  cursor:pointer;transition:.2s;}
+.toggle input:checked+.toggle-track{background:var(--brand);}
+.toggle-track::before{content:'';position:absolute;left:3px;top:3px;width:18px;height:18px;
+  background:#fff;border-radius:50%;transition:.2s;box-shadow:0 1px 3px rgba(0,0,0,.2);}
+.toggle input:checked+.toggle-track::before{left:23px;}
 
-  /* Tipo cards */
-  .tipo-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-  .tipo-card {
-    background: var(--bg);
-    border: 2px solid var(--border);
-    border-radius: 16px;
-    padding: 18px 12px 14px;
-    text-align: center;
-    cursor: pointer;
-    transition: all 0.18s ease;
-    user-select: none;
-    -webkit-user-select: none;
-  }
-  .tipo-card:active { transform: scale(0.97); }
-  .tipo-card.selected {
-    border-color: var(--brand);
-    background: #FFF4F0;
-    box-shadow: 0 0 0 4px rgba(232,80,10,0.08);
-  }
-  .tipo-card .tipo-ico { font-size: 2.2rem; margin-bottom: 10px; line-height: 1; }
-  .tipo-card .tipo-name {
-    font-family: 'Syne', sans-serif;
-    font-size: 0.82rem;
-    font-weight: 700;
-    line-height: 1.2;
-    color: var(--text);
-  }
-  .tipo-card .tipo-desc { font-size: 0.7rem; color: var(--muted); margin-top: 4px; }
-  .tipo-card.selected .tipo-name { color: var(--brand); }
-  .tipo-check {
-    display: none;
-    width: 20px; height: 20px;
-    background: var(--brand);
-    border-radius: 50%;
-    margin: 8px auto 0;
-    align-items: center; justify-content: center;
-    color: #fff; font-size: 0.7rem;
-  }
-  .tipo-card.selected .tipo-check { display: flex; }
+/* Recogedor */
+.recogedor-section{margin-top:14px;}
+.recogedor-type{display:flex;gap:8px;margin-bottom:10px;}
+.rtype-btn{flex:1;padding:8px;border-radius:8px;border:1.5px solid var(--border);
+  background:var(--bg);color:var(--muted);font-size:.78rem;font-weight:600;cursor:pointer;
+  transition:all .15s;text-align:center;}
+.rtype-btn.active{border-color:var(--brand);background:#FFF4F0;color:var(--brand);}
 
-  /* Button */
-  .btn-submit {
-    width: 100%;
-    padding: 16px;
-    background: linear-gradient(135deg, var(--brand-dark), var(--brand-light));
-    color: #fff;
-    border: none;
-    border-radius: 14px;
-    font-family: 'Syne', sans-serif;
-    font-size: 1rem;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.2s;
-    margin-top: 4px;
-    letter-spacing: 0.01em;
-    box-shadow: 0 4px 16px rgba(232,80,10,0.3);
-  }
-  .btn-submit:hover:not(:disabled) {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 24px rgba(232,80,10,0.4);
-  }
-  .btn-submit:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
-    transform: none;
-    box-shadow: none;
-  }
+/* Divider */
+.divider{height:1px;background:var(--border);margin:20px 0;}
 
-  .spinner {
-    width: 18px; height: 18px;
-    border: 2px solid rgba(255,255,255,0.4);
-    border-top-color: #fff;
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
-    display: inline-block; vertical-align: middle;
-    margin-right: 8px;
-  }
-  @keyframes spin { to { transform: rotate(360deg); } }
+/* ── Success screen ── */
+.success-wrap{text-align:center;padding:8px 0 4px;animation:fadeUp .4s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+.success-ring{width:76px;height:76px;border-radius:50%;
+  background:linear-gradient(135deg,var(--success),#16A34A);
+  display:flex;align-items:center;justify-content:center;font-size:1.9rem;
+  margin:0 auto 18px;box-shadow:0 8px 24px rgba(26,158,92,.3);
+  animation:popIn .5s cubic-bezier(.175,.885,.32,1.275) .1s both;}
+@keyframes popIn{from{transform:scale(0)}to{transform:scale(1)}}
+.success-wrap h2{font-family:'Syne',sans-serif;font-size:1.4rem;font-weight:800;
+  color:var(--success);margin-bottom:6px;}
+.success-wrap .s-sub{color:var(--muted);font-size:.86rem;margin-bottom:20px;}
 
-  /* Success */
-  .success-view {
-    display: none;
-    text-align: center;
-    padding: 8px 0 4px;
-  }
-  .success-view.show { display: block; animation: fadeUp 0.4s ease; }
-  @keyframes fadeUp { from { opacity:0; transform: translateY(12px); } to { opacity:1; transform:none; } }
+/* Summary receipt */
+.receipt{background:var(--bg);border:1px solid var(--border);border-radius:14px;
+  overflow:hidden;margin-bottom:20px;text-align:left;}
+.receipt-row{display:flex;align-items:flex-start;justify-content:space-between;
+  padding:11px 16px;border-bottom:1px solid var(--border);font-size:.84rem;}
+.receipt-row:last-child{border-bottom:none;}
+.receipt-key{color:var(--muted);font-weight:500;flex-shrink:0;margin-right:12px;}
+.receipt-val{font-weight:600;text-align:right;}
+.receipt-header{background:linear-gradient(135deg,var(--brand-dark),var(--brand));
+  padding:12px 16px;display:flex;align-items:center;justify-content:space-between;}
+.receipt-header span{color:#fff;font-family:'Syne',sans-serif;font-size:.85rem;font-weight:700;}
+.receipt-header .receipt-id{color:rgba(255,255,255,.7);font-size:.72rem;font-family:'Plus Jakarta Sans',sans-serif;font-weight:400;}
 
-  .success-ring {
-    width: 80px; height: 80px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--success), #16A34A);
-    display: flex; align-items: center; justify-content: center;
-    font-size: 2rem;
-    margin: 0 auto 20px;
-    box-shadow: 0 8px 24px rgba(26,158,92,0.3);
-    animation: popIn 0.5s cubic-bezier(0.175,0.885,0.32,1.275) 0.1s both;
-  }
-  @keyframes popIn { from { transform: scale(0); } to { transform: scale(1); } }
-
-  .success-view h2 {
-    font-family: 'Syne', sans-serif;
-    font-size: 1.5rem;
-    font-weight: 800;
-    margin-bottom: 6px;
-    color: var(--success);
-  }
-  .success-view .success-sub { color: var(--muted); font-size: 0.88rem; margin-bottom: 20px; }
-
-  .success-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    background: #F0FDF4;
-    border: 1px solid #BBF7D0;
-    border-radius: 12px;
-    padding: 12px 18px;
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: #166534;
-    margin-bottom: 8px;
-    width: 100%;
-    justify-content: center;
-  }
-  .success-name {
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 12px 18px;
-    font-size: 0.82rem;
-    color: var(--muted);
-    margin-bottom: 20px;
-    font-weight: 500;
-  }
-
-  .btn-nuevo {
-    width: 100%;
-    padding: 13px;
-    background: var(--bg);
-    border: 1.5px solid var(--border);
-    border-radius: 12px;
-    font-family: 'Plus Jakarta Sans', sans-serif;
-    font-size: 0.88rem;
-    font-weight: 600;
-    color: var(--text);
-    cursor: pointer;
-    transition: all 0.2s;
-  }
-  .btn-nuevo:hover { border-color: var(--brand); color: var(--brand); }
-
-  .footer-note {
-    margin-top: 20px;
-    font-size: 0.72rem;
-    color: var(--muted);
-    text-align: center;
-  }
+footer{margin-top:22px;font-size:.72rem;color:var(--muted);text-align:center;}
 </style>
 </head>
 <body>
@@ -333,110 +168,380 @@
   <div class="logo-text">RIP<span>CONCIV</span></div>
 </div>
 
-<div class="card">
-  <div class="card-top">
+<div class="main-card">
+  <div class="card-banner">
     <h1>Registro de Almuerzo</h1>
     <div class="fecha-chip">📅 <span id="fecha-hoy"></span></div>
   </div>
 
   <div class="card-body">
-    <!-- FORM -->
-    <div id="form-view">
+
+    <!-- ── VIEW: AUTH ── -->
+    <div class="view show" id="view-auth">
+      <div id="guest-banner" class="guest-banner" style="display:none">
+        👋 <div><strong>Acceso de invitado</strong> — Ingresa tu nombre completo para continuar.</div>
+      </div>
+
+      <!-- Guest form -->
+      <div id="guest-form" style="display:none">
+        <div class="form-group">
+          <label class="form-label">Tu nombre completo</label>
+          <input type="text" class="form-input" id="guest-name" placeholder="Ej: Juan Pérez García"
+            oninput="checkGuestReady()">
+        </div>
+        <button class="btn btn-primary btn-full" id="btn-guest-continue" onclick="continueAsGuest()" disabled>
+          Continuar →
+        </button>
+        <p class="auth-note">Acceso válido solo para hoy</p>
+      </div>
+
+      <!-- MS Login -->
+      <div id="ms-login-form">
+        <button class="ms-btn" id="btn-ms" onclick="loginMicrosoft()">
+          <div class="ms-logo">
+            <span></span><span></span><span></span><span></span>
+          </div>
+          Iniciar sesión con Microsoft 365
+        </button>
+        <p class="auth-note">Solo cuentas @ripconciv.com</p>
+      </div>
+    </div>
+
+    <!-- ── VIEW: FORM ── -->
+    <div class="view" id="view-form">
+      <div id="user-welcome" class="user-welcome" style="display:none">
+        <div class="user-avatar" id="ua-initials">?</div>
+        <div>
+          <div class="user-name" id="ua-name">—</div>
+          <div class="user-email" id="ua-email">—</div>
+        </div>
+      </div>
+
       <div class="alert alert-warning" id="alert-dup">
-        ⚠️ Ya registraste tu almuerzo hoy. Solo se permite un registro por día.
+        ⚠️ Ya registraste tu almuerzo hoy.
       </div>
       <div class="alert alert-error" id="alert-err">
-        <span>❌</span> <span id="alert-err-msg">Ocurrió un error. Intenta de nuevo.</span>
+        <span>❌</span><span id="alert-err-msg">Error al registrar.</span>
       </div>
 
+      <!-- Modalidad -->
       <div class="form-group">
-        <label class="form-label">Tu nombre completo</label>
-        <div class="select-wrapper">
-          <select id="sel-empleado" onchange="onFormChange()">
-            <option value="">— Selecciona tu nombre —</option>
-          </select>
-        </div>
-      </div>
-
-      <div class="form-group">
-        <label class="form-label">Tipo de almuerzo</label>
-        <div class="tipo-grid">
-          <div class="tipo-card" id="card-completo" onclick="selectTipo('completo')">
-            <div class="tipo-ico">🍱</div>
-            <div class="tipo-name">Almuerzo Completo</div>
-            <div class="tipo-desc">Sopa + Segundo + Jugo</div>
-            <div class="tipo-check">✓</div>
+        <label class="form-label">¿Cómo vas a comer?</label>
+        <div class="modality-grid">
+          <div class="modality-card" id="mod-ahi" onclick="selectModality('ahi')">
+            <div class="modality-ico">🪑</div>
+            <div class="modality-name">Comer aquí</div>
+            <div class="modality-desc">En el comedor</div>
+            <div class="modality-check">✓</div>
           </div>
-          <div class="tipo-card" id="card-segundo" onclick="selectTipo('segundo')">
-            <div class="tipo-ico">🍛</div>
-            <div class="tipo-name">Solo Segundo</div>
-            <div class="tipo-desc">Segundo + Jugo</div>
-            <div class="tipo-check">✓</div>
+          <div class="modality-card" id="mod-llevar" onclick="selectModality('llevar')">
+            <div class="modality-ico">🥡</div>
+            <div class="modality-name">Para llevar</div>
+            <div class="modality-desc">Pedido personalizado</div>
+            <div class="modality-check">✓</div>
           </div>
         </div>
       </div>
 
-      <button class="btn-submit" id="btn-submit" onclick="registrar()" disabled>
-        Confirmar Registro
-      </button>
+      <!-- Tipo almuerzo (comer aquí) -->
+      <div id="section-tipo" style="display:none">
+        <div class="form-group">
+          <label class="form-label">Tipo de almuerzo</label>
+          <div class="tipo-grid">
+            <div class="tipo-card" id="tc-completo" onclick="selectTipo('completo')">
+              <div class="t-ico">🍱</div>
+              <div class="t-name">Almuerzo Completo</div>
+              <div class="t-desc">Sopa + Segundo + Jugo</div>
+              <div class="tipo-chk">✓</div>
+            </div>
+            <div class="tipo-card" id="tc-segundo" onclick="selectTipo('segundo')">
+              <div class="t-ico">🍛</div>
+              <div class="t-name">Solo Segundo</div>
+              <div class="t-desc">Segundo + Jugo</div>
+              <div class="tipo-chk">✓</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Para llevar form -->
+      <div id="section-llevar" style="display:none">
+        <div class="llevar-form">
+          <div class="llevar-form-title">🥡 Detalle del pedido para llevar</div>
+
+          <!-- Sopa -->
+          <div class="llevar-field">
+            <div class="llevar-check-row">
+              <span>🍲 Sopa</span>
+              <label class="toggle">
+                <input type="checkbox" id="llevar-sopa" checked onchange="onLlevarChange()">
+                <div class="toggle-track"></div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Plato principal -->
+          <div class="llevar-field">
+            <label>🍛 Plato principal</label>
+            <input type="text" class="form-input" id="llevar-plato"
+              placeholder="Ej: Arroz con pollo, sin ensalada..." oninput="onLlevarChange()">
+          </div>
+
+          <!-- Postre -->
+          <div class="llevar-field">
+            <div class="llevar-check-row">
+              <span>🍮 Postre</span>
+              <label class="toggle">
+                <input type="checkbox" id="llevar-postre" checked onchange="onLlevarChange()">
+                <div class="toggle-track"></div>
+              </label>
+            </div>
+          </div>
+
+          <!-- Bebida -->
+          <div class="llevar-field">
+            <label>🧃 Bebida</label>
+            <input type="text" class="form-input" id="llevar-bebida"
+              placeholder="Ej: Jugo de naranja, agua..." oninput="onLlevarChange()">
+          </div>
+
+          <!-- Quién recoge -->
+          <div class="llevar-field recogedor-section">
+            <label>👤 ¿Quién recoge?</label>
+            <div class="recogedor-type">
+              <div class="rtype-btn active" id="rt-yo" onclick="setRecogedor('yo')">Yo mismo</div>
+              <div class="rtype-btn" id="rt-empleado" onclick="setRecogedor('empleado')">Otro empleado</div>
+              <div class="rtype-btn" id="rt-externo" onclick="setRecogedor('externo')">Persona externa</div>
+            </div>
+            <div id="recogedor-yo" style="background:var(--bg);border:1px solid var(--border);
+              border-radius:10px;padding:10px 14px;font-size:.84rem;color:var(--muted);">
+              Tú mismo recoges el pedido ✓
+            </div>
+            <div id="recogedor-empleado" style="display:none">
+              <div class="select-wrap">
+                <select class="form-select" id="recogedor-emp-sel" onchange="onLlevarChange()">
+                  <option value="">— Selecciona el empleado —</option>
+                </select>
+              </div>
+            </div>
+            <div id="recogedor-externo" style="display:none">
+              <input type="text" class="form-input" id="recogedor-ext-name"
+                placeholder="Nombre de quien recoge..." oninput="onLlevarChange()">
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top:22px;">
+        <button class="btn btn-primary btn-full" id="btn-submit" onclick="registrar()" disabled>
+          Confirmar Registro
+        </button>
+      </div>
     </div>
 
-    <!-- SUCCESS -->
-    <div class="success-view" id="success-view">
-      <div class="success-ring">✓</div>
-      <h2>¡Registrado!</h2>
-      <p class="success-sub">Tu almuerzo fue confirmado para hoy</p>
-      <div class="success-pill" id="suc-tipo"></div>
-      <div class="success-name" id="suc-nombre"></div>
-      <button class="btn-nuevo" onclick="resetForm()">Registrar otra persona</button>
-    </div>
-  </div>
-</div>
+    <!-- ── VIEW: SUCCESS ── -->
+    <div class="view" id="view-success">
+      <div class="success-wrap">
+        <div class="success-ring">✓</div>
+        <h2>¡Registrado!</h2>
+        <p class="s-sub">Tu solicitud fue confirmada para hoy</p>
 
-<div class="footer-note">Ripconciv © <span id="year"></span> — Sistema de Almuerzos</div>
+        <div class="receipt">
+          <div class="receipt-header">
+            <span>Comprobante de Almuerzo</span>
+            <span class="receipt-id" id="suc-id">#—</span>
+          </div>
+          <div class="receipt-row">
+            <span class="receipt-key">Persona</span>
+            <span class="receipt-val" id="suc-nombre">—</span>
+          </div>
+          <div class="receipt-row">
+            <span class="receipt-key">Fecha</span>
+            <span class="receipt-val" id="suc-fecha">—</span>
+          </div>
+          <div class="receipt-row">
+            <span class="receipt-key">Modalidad</span>
+            <span class="receipt-val" id="suc-modalidad">—</span>
+          </div>
+          <div class="receipt-row" id="suc-row-tipo">
+            <span class="receipt-key">Tipo</span>
+            <span class="receipt-val" id="suc-tipo">—</span>
+          </div>
+          <!-- Llevar details injected here -->
+          <div id="suc-llevar-rows"></div>
+        </div>
+
+        <button class="btn btn-secondary btn-full" onclick="resetForm()">Registrar otra persona</button>
+      </div>
+    </div>
+
+  </div><!-- card-body -->
+</div><!-- main-card -->
+
+<footer>Ripconciv © <span id="yr"></span> — Sistema de Almuerzos</footer>
 
 <script>
 const { createClient } = supabase;
 const db = createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 
-let tipoSeleccionado = null;
+let msalApp = null;
+let currentUser = { name: '', email: '', tipo: 'ms' }; // tipo: ms | guest
+let selectedModality = null;
+let selectedTipo     = null;
+let recogedorTipo    = 'yo';
+let isGuest          = false;
 
-// Init
-document.addEventListener('DOMContentLoaded', () => {
-  document.getElementById('year').textContent = new Date().getFullYear();
-  const hoy = fechaHoy();
-  document.getElementById('fecha-hoy').textContent = fechaDisplay(hoy);
+// ── INIT ──
+document.addEventListener('DOMContentLoaded', async () => {
+  document.getElementById('yr').textContent   = new Date().getFullYear();
+  document.getElementById('fecha-hoy').textContent = fechaDisplay(fechaHoy());
 
-  const sel = document.getElementById('sel-empleado');
+  // Populate employee selects
+  const sel = document.getElementById('recogedor-emp-sel');
   EMPLEADOS.forEach(e => {
-    const o = document.createElement('option');
-    o.value = e; o.textContent = e;
-    sel.appendChild(o);
+    const o = document.createElement('option'); o.value = e; o.textContent = e; sel.appendChild(o);
   });
+
+  // Check for invite token in URL
+  const params = new URLSearchParams(window.location.search);
+  const token  = params.get('inv');
+  const fecha  = params.get('f');
+
+  if (token && fecha && validateInviteToken(token, fecha)) {
+    isGuest = true;
+    // Show guest UI
+    document.getElementById('ms-login-form').style.display = 'none';
+    document.getElementById('guest-banner').style.display  = 'flex';
+    document.getElementById('guest-form').style.display    = 'block';
+    return;
+  }
+
+  // Init MSAL and try silent login
+  try {
+    msalApp = new msal.PublicClientApplication(CONFIG.msalConfig);
+    await msalApp.initialize();
+    // Handle redirect response
+    const resp = await msalApp.handleRedirectPromise();
+    if (resp) onMsalSuccess(resp);
+    else {
+      const accounts = msalApp.getAllAccounts();
+      if (accounts.length > 0) {
+        const r = await msalApp.acquireTokenSilent({ scopes: CONFIG.msalScopes, account: accounts[0] });
+        onMsalSuccess(r);
+      }
+    }
+  } catch(e) { console.warn('MSAL init:', e); }
 });
 
-function selectTipo(tipo) {
-  tipoSeleccionado = tipo;
-  document.getElementById('card-completo').classList.toggle('selected', tipo === 'completo');
-  document.getElementById('card-segundo').classList.toggle('selected', tipo === 'segundo');
-  onFormChange();
+// ── MICROSOFT LOGIN ──
+async function loginMicrosoft() {
+  if (!msalApp) return;
+  try {
+    const btn = document.getElementById('btn-ms');
+    btn.textContent = 'Conectando...'; btn.disabled = true;
+    await msalApp.loginRedirect({ scopes: CONFIG.msalScopes });
+  } catch(e) {
+    document.getElementById('btn-ms').textContent = 'Reintentar';
+    document.getElementById('btn-ms').disabled = false;
+    showAlert('alert-err', 'No se pudo conectar con Microsoft. Intenta de nuevo.');
+  }
 }
 
-function onFormChange() {
-  const emp = document.getElementById('sel-empleado').value;
-  document.getElementById('btn-submit').disabled = !(emp && tipoSeleccionado);
-  hideAlerts();
+function onMsalSuccess(resp) {
+  const account = resp.account || msalApp.getAllAccounts()[0];
+  const email   = account.username || '';
+  const domain  = email.split('@')[1] || '';
+  if (domain.toLowerCase() !== CONFIG.dominioPermitido) {
+    showAlert('alert-err', `Solo se permiten cuentas @${CONFIG.dominioPermitido}.`);
+    msalApp.logoutRedirect();
+    return;
+  }
+  const name = account.name || email.split('@')[0].replace(/\./g,' ').toUpperCase();
+  currentUser = { name, email, tipo: 'ms' };
+  showFormView();
+}
+
+// ── GUEST ──
+function checkGuestReady() {
+  document.getElementById('btn-guest-continue').disabled =
+    document.getElementById('guest-name').value.trim().length < 3;
+}
+function continueAsGuest() {
+  const name = document.getElementById('guest-name').value.trim().toUpperCase();
+  if (name.length < 3) return;
+  currentUser = { name, email: 'INVITADO', tipo: 'guest' };
+  showFormView();
+}
+
+// ── SHOW FORM ──
+function showFormView() {
+  document.getElementById('view-auth').classList.remove('show');
+  document.getElementById('view-form').classList.add('show');
+  // Show welcome
+  const w = document.getElementById('user-welcome');
+  w.style.display = 'flex';
+  document.getElementById('ua-name').textContent  = currentUser.name;
+  document.getElementById('ua-email').textContent = currentUser.email;
+  const initials = currentUser.name.split(' ').slice(0,2).map(w=>w[0]).join('');
+  document.getElementById('ua-initials').textContent = initials;
+}
+
+// ── MODALITY ──
+function selectModality(m) {
+  selectedModality = m;
+  document.getElementById('mod-ahi').classList.toggle('selected', m==='ahi');
+  document.getElementById('mod-llevar').classList.toggle('selected', m==='llevar');
+  document.getElementById('section-tipo').style.display   = m==='ahi'    ? 'block' : 'none';
+  document.getElementById('section-llevar').style.display = m==='llevar' ? 'block' : 'none';
+  if (m==='ahi') selectedTipo = null; // reset
+  checkSubmitReady();
+}
+
+// ── TIPO ──
+function selectTipo(t) {
+  selectedTipo = t;
+  document.getElementById('tc-completo').classList.toggle('selected', t==='completo');
+  document.getElementById('tc-segundo').classList.toggle('selected',  t==='segundo');
+  checkSubmitReady();
+}
+
+// ── RECOGEDOR ──
+function setRecogedor(tipo) {
+  recogedorTipo = tipo;
+  ['yo','empleado','externo'].forEach(t => {
+    document.getElementById('rt-'+t).classList.toggle('active', t===tipo);
+    document.getElementById('recogedor-'+t).style.display = t===tipo ? 'block' : 'none';
+  });
+  onLlevarChange();
+}
+
+function onLlevarChange() { checkSubmitReady(); }
+
+function checkSubmitReady() {
+  let ok = !!selectedModality;
+  if (selectedModality === 'ahi')    ok = ok && !!selectedTipo;
+  if (selectedModality === 'llevar') {
+    const plato  = document.getElementById('llevar-plato').value.trim();
+    const bebida = document.getElementById('llevar-bebida').value.trim();
+    ok = ok && plato.length > 0 && bebida.length > 0;
+    if (recogedorTipo==='empleado') ok = ok && !!document.getElementById('recogedor-emp-sel').value;
+    if (recogedorTipo==='externo')  ok = ok && document.getElementById('recogedor-ext-name').value.trim().length > 1;
+  }
+  document.getElementById('btn-submit').disabled = !ok;
 }
 
 function hideAlerts() {
   document.getElementById('alert-dup').classList.remove('show');
   document.getElementById('alert-err').classList.remove('show');
 }
+function showAlert(id, msg) {
+  if (msg) document.getElementById('alert-err-msg').textContent = msg;
+  document.getElementById(id).classList.add('show');
+}
 
+// ── REGISTER ──
 async function registrar() {
-  const empleado = document.getElementById('sel-empleado').value;
-  if (!empleado || !tipoSeleccionado) return;
-
+  if (!selectedModality) return;
   const btn = document.getElementById('btn-submit');
   btn.disabled = true;
   btn.innerHTML = '<span class="spinner"></span>Registrando...';
@@ -444,50 +549,100 @@ async function registrar() {
 
   const hoy = fechaHoy();
 
-  // Check duplicado
+  // Duplicate check
   const { data: dup } = await db.from('almuerzos')
-    .select('id').eq('empleado', empleado).eq('fecha', hoy).limit(1);
-
+    .select('id').eq('empleado', currentUser.name).eq('fecha', hoy).limit(1);
   if (dup && dup.length > 0) {
-    document.getElementById('alert-dup').classList.add('show');
-    btn.disabled = false;
-    btn.innerHTML = 'Confirmar Registro';
-    return;
+    showAlert('alert-dup');
+    btn.disabled = false; btn.innerHTML = 'Confirmar Registro'; return;
   }
 
-  // Insert
-  const { error } = await db.from('almuerzos').insert({
-    empleado,
-    tipo: tipoSeleccionado,
-    fecha: hoy,
-    hora: new Date().toISOString()
-  });
+  // Build record
+  const record = {
+    empleado:   currentUser.name,
+    email:      currentUser.email,
+    tipo_user:  currentUser.tipo,      // ms | guest
+    fecha:      hoy,
+    hora:       new Date().toISOString(),
+    modalidad:  selectedModality,       // ahi | llevar
+    tipo:       selectedModality==='ahi' ? selectedTipo : 'llevar',
+    // llevar fields
+    llevar_sopa:   selectedModality==='llevar' ? document.getElementById('llevar-sopa').checked : null,
+    llevar_plato:  selectedModality==='llevar' ? document.getElementById('llevar-plato').value.trim() : null,
+    llevar_postre: selectedModality==='llevar' ? document.getElementById('llevar-postre').checked : null,
+    llevar_bebida: selectedModality==='llevar' ? document.getElementById('llevar-bebida').value.trim() : null,
+    recogedor: selectedModality==='llevar' ? getRecogedor() : null,
+    // attendance
+    asistio:         false,
+    asistio_marcado: null,
+    asistio_flag:    false,
+  };
 
+  const { data: inserted, error } = await db.from('almuerzos').insert(record).select().single();
   if (error) {
-    document.getElementById('alert-err').classList.add('show');
-    document.getElementById('alert-err-msg').textContent = error.message;
-    btn.disabled = false;
-    btn.innerHTML = 'Confirmar Registro';
-    return;
+    showAlert('alert-err', error.message);
+    btn.disabled = false; btn.innerHTML = 'Confirmar Registro'; return;
   }
 
-  // Mostrar éxito
-  document.getElementById('suc-tipo').textContent =
-    tipoSeleccionado === 'completo' ? '🍱 Almuerzo Completo confirmado' : '🍛 Solo Segundo confirmado';
-  document.getElementById('suc-nombre').textContent = '👤 ' + empleado;
-  document.getElementById('form-view').style.display = 'none';
-  document.getElementById('success-view').classList.add('show');
+  showSuccess(inserted);
+}
+
+function getRecogedor() {
+  if (recogedorTipo==='yo')       return currentUser.name + ' (yo mismo)';
+  if (recogedorTipo==='empleado') return document.getElementById('recogedor-emp-sel').value;
+  if (recogedorTipo==='externo')  return document.getElementById('recogedor-ext-name').value.trim();
+  return '';
+}
+
+function showSuccess(rec) {
+  document.getElementById('view-form').classList.remove('show');
+  document.getElementById('view-success').classList.add('show');
+
+  document.getElementById('suc-id').textContent       = '#' + rec.id.substring(0,8).toUpperCase();
+  document.getElementById('suc-nombre').textContent   = rec.empleado;
+  document.getElementById('suc-fecha').textContent    = fechaDisplay(rec.fecha);
+  document.getElementById('suc-modalidad').textContent= rec.modalidad==='ahi' ? '🪑 Comer en el comedor' : '🥡 Para llevar';
+
+  const tipoRow = document.getElementById('suc-row-tipo');
+  if (rec.modalidad === 'ahi') {
+    tipoRow.style.display = 'flex';
+    document.getElementById('suc-tipo').textContent = rec.tipo==='completo' ? '🍱 Almuerzo Completo' : '🍛 Solo Segundo';
+  } else {
+    tipoRow.style.display = 'none';
+    // Build llevar rows
+    const rows = [
+      ['Sopa',           rec.llevar_sopa  ? '✅ Sí' : '❌ No'],
+      ['Plato principal', rec.llevar_plato],
+      ['Postre',         rec.llevar_postre ? '✅ Sí' : '❌ No'],
+      ['Bebida',         rec.llevar_bebida],
+      ['Recoge',         rec.recogedor],
+    ];
+    document.getElementById('suc-llevar-rows').innerHTML = rows.map(([k,v]) => `
+      <div class="receipt-row">
+        <span class="receipt-key">${k}</span>
+        <span class="receipt-val">${v||'—'}</span>
+      </div>`).join('');
+  }
 }
 
 function resetForm() {
-  tipoSeleccionado = null;
-  document.getElementById('sel-empleado').value = '';
-  document.getElementById('card-completo').classList.remove('selected');
-  document.getElementById('card-segundo').classList.remove('selected');
+  selectedModality = null; selectedTipo = null; recogedorTipo = 'yo';
+  document.getElementById('view-success').classList.remove('show');
+  document.getElementById('view-form').classList.add('show');
+  document.getElementById('mod-ahi').classList.remove('selected');
+  document.getElementById('mod-llevar').classList.remove('selected');
+  document.getElementById('tc-completo').classList.remove('selected');
+  document.getElementById('tc-segundo').classList.remove('selected');
+  document.getElementById('section-tipo').style.display   = 'none';
+  document.getElementById('section-llevar').style.display = 'none';
   document.getElementById('btn-submit').disabled = true;
   document.getElementById('btn-submit').innerHTML = 'Confirmar Registro';
-  document.getElementById('form-view').style.display = 'block';
-  document.getElementById('success-view').classList.remove('show');
+  document.getElementById('suc-llevar-rows').innerHTML = '';
+  document.getElementById('llevar-plato').value  = '';
+  document.getElementById('llevar-bebida').value = '';
+  document.getElementById('llevar-sopa').checked   = true;
+  document.getElementById('llevar-postre').checked = true;
+  setRecogedor('yo');
   hideAlerts();
 }
 </script>

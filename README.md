@@ -1,123 +1,110 @@
-# 🏗️ Ripconciv — Sistema de Almuerzos
-
-Plataforma web para registro y control de almuerzos empresariales.
+# 🏗️ RIPCONCIV — Sistema de Almuerzos v3
 
 ---
 
-## 📁 Estructura de archivos
-
-```
-ripconciv/
-├── index.html      ← Registro de empleados (URL del QR)
-├── login.html      ← Login para Admin y Cocina
-├── admin.html      ← Panel administrativo completo
-├── cocina.html     ← Vista de la señora de almuerzos (tiempo real)
-├── js/
-│   └── config.js   ← Configuración, credenciales, lista de empleados
-└── README.md
-```
-
----
-
-## 🗄️ PASO 1 — Crear tabla en Supabase
-
-Ve a tu proyecto Supabase → **SQL Editor** → ejecuta:
+## PASO 1 — SQL en Supabase (ejecutar UNA sola vez)
 
 ```sql
-CREATE TABLE IF NOT EXISTS almuerzos (
-  id          uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  empleado    text NOT NULL,
-  tipo        text NOT NULL CHECK (tipo IN ('completo','segundo')),
-  fecha       date NOT NULL,
-  hora        timestamptz NOT NULL DEFAULT now(),
-  created_at  timestamptz DEFAULT now()
+-- Eliminar tabla anterior si existe
+DROP TABLE IF EXISTS almuerzos;
+
+-- Crear tabla completa v3
+CREATE TABLE almuerzos (
+  id               uuid DEFAULT gen_random_uuid() PRIMARY KEY,
+  empleado         text NOT NULL,
+  email            text,
+  tipo_user        text NOT NULL DEFAULT 'ms' CHECK (tipo_user IN ('ms','guest')),
+
+  -- Registro
+  fecha            date NOT NULL,
+  hora             timestamptz NOT NULL DEFAULT now(),
+  modalidad        text NOT NULL CHECK (modalidad IN ('ahi','llevar')),
+  tipo             text CHECK (tipo IN ('completo','segundo','llevar')),
+
+  -- Para llevar
+  llevar_sopa      boolean,
+  llevar_plato     text,
+  llevar_postre    boolean,
+  llevar_bebida    text,
+  recogedor        text,
+
+  -- Asistencia (check cocina)
+  asistio          boolean NOT NULL DEFAULT false,
+  asistio_marcado  timestamptz,
+  asistio_flag     boolean NOT NULL DEFAULT false,
+
+  created_at       timestamptz DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_almuerzos_fecha     ON almuerzos (fecha);
-CREATE INDEX IF NOT EXISTS idx_almuerzos_empleado  ON almuerzos (empleado);
+-- Índices
+CREATE INDEX idx_alm_fecha     ON almuerzos (fecha);
+CREATE INDEX idx_alm_empleado  ON almuerzos (empleado);
+CREATE INDEX idx_alm_modalidad ON almuerzos (modalidad);
+CREATE INDEX idx_alm_asistio   ON almuerzos (asistio);
 
+-- Seguridad
 ALTER TABLE almuerzos ENABLE ROW LEVEL SECURITY;
-
-CREATE POLICY "allow_insert" ON almuerzos FOR INSERT WITH CHECK (true);
-CREATE POLICY "allow_select" ON almuerzos FOR SELECT USING (true);
+CREATE POLICY "insert_open"  ON almuerzos FOR INSERT WITH CHECK (true);
+CREATE POLICY "select_open"  ON almuerzos FOR SELECT USING (true);
+CREATE POLICY "update_open"  ON almuerzos FOR UPDATE USING (true);
 ```
 
 ---
 
-## 🚀 PASO 2 — Publicar en GitHub Pages
+## PASO 2 — Cambiar contraseñas
 
-### 2a. Crear repositorio
-1. Ve a https://github.com/new
-2. Nombre: `ripconciv-almuerzos` (o el que prefieras)
-3. Visibilidad: **Private** (recomendado)
-4. Clic en **Create repository**
+Abre `js/config.js` y cambia:
+```js
+usuarios: {
+  admin:  { password: 'TuPasswordAdmin!',  rol: 'admin'  },
+  cocina: { password: 'TuPasswordCocina!', rol: 'cocina' }
+}
+```
 
-### 2b. Subir archivos
-En tu computadora, abre una terminal en la carpeta `ripconciv/` y ejecuta:
+---
+
+## PASO 3 — Publicar en GitHub Pages
 
 ```bash
 git init
 git add .
-git commit -m "Plataforma almuerzos Ripconciv"
+git commit -m "Ripconciv Almuerzos v3"
 git branch -M main
 git remote add origin https://github.com/TU_USUARIO/ripconciv-almuerzos.git
 git push -u origin main
 ```
 
-### 2c. Activar GitHub Pages
-1. En tu repositorio → **Settings** → **Pages**
-2. Source: **Deploy from a branch**
-3. Branch: **main** / **(root)**
-4. Clic en **Save**
-5. En 1-2 minutos tu URL será:
-   ```
-   https://TU_USUARIO.github.io/ripconciv-almuerzos/
-   ```
+GitHub → Settings → Pages → Branch: main / (root) → Save
+
+Tu URL: `https://TU_USUARIO.github.io/ripconciv-almuerzos/`
 
 ---
 
-## 📷 PASO 3 — Generar e imprimir el QR
+## PASO 4 — En Azure AD, agregar la URL de GitHub Pages
 
-1. Ve a cualquier generador de QR gratuito (ej: https://qr-code-generator.com)
-2. Pega la URL: `https://TU_USUARIO.github.io/ripconciv-almuerzos/`
-3. Imprime y pega en el comedor
-
----
-
-## 🔐 PASO 4 — Cambiar contraseñas
-
-Abre `js/config.js` y cambia las contraseñas por defecto:
-
-```js
-usuarios: {
-  admin:  { password: 'TuContraseñaSegura!', rol: 'admin' },
-  cocina: { password: 'OtraContraseña!',     rol: 'cocina' }
-}
+Portal Azure → App registrations → Ripconciv Almuerzos → Authentication → Redirect URIs → Agregar:
+```
+https://TU_USUARIO.github.io/ripconciv-almuerzos/
 ```
 
-Luego vuelve a hacer commit y push.
+---
+
+## Flujos de acceso
+
+| Quién         | URL                        | Seguridad               |
+|---------------|----------------------------|-------------------------|
+| Empleado (QR) | `/index.html`              | Login Microsoft 365     |
+| Invitado      | `/index.html?inv=...&f=...`| Token válido solo 1 día |
+| Admin         | `/admin.html`              | Usuario + contraseña    |
+| Cocina        | `/cocina.html`             | Usuario + contraseña    |
 
 ---
 
-## 📱 URLs de acceso
+## Lógica del check de asistencia
 
-| Vista | URL | Para quién |
-|---|---|---|
-| Registro | `https://TU_USUARIO.github.io/ripconciv-almuerzos/` | Empleados (vía QR) |
-| Login | `https://TU_USUARIO.github.io/ripconciv-almuerzos/login.html` | Admin y Cocina |
-| Admin | `https://TU_USUARIO.github.io/ripconciv-almuerzos/admin.html` | Tú / empresa |
-| Cocina | `https://TU_USUARIO.github.io/ripconciv-almuerzos/cocina.html` | Señora almuerzos |
-
----
-
-## ✅ Funcionalidades incluidas
-
-- ✅ Registro de empleados (lista desplegable, sin escribir)
-- ✅ Anti-duplicado: no permite registrarse dos veces el mismo día
-- ✅ Fecha automática en zona horaria Ecuador (America/Guayaquil)
-- ✅ Login separado para Admin y Cocina (usuario + contraseña)
-- ✅ Panel Admin: estadísticas del día, historial por mes, ranking por empleado
-- ✅ Exportar a CSV (día o mes completo)
-- ✅ Vista Cocina: totales grandes, listas por tipo, actualización automática cada 30s
-- ✅ Botón WhatsApp en cocina: genera resumen listo para enviar
-- ✅ Base de datos Supabase con historial permanente
+| Acción cocina       | `asistio` | `asistio_flag` | Visible en admin         |
+|---------------------|-----------|----------------|--------------------------|
+| Marcar ✅           | true      | false          | ✅ Confirmado             |
+| Desmarcar (error?)  | false     | **true**       | ⚠️ Revisión pendiente     |
+| Admin limpia marca  | false     | false          | ○ No confirmado (limpio) |
+| Re-marcar           | true      | false          | ✅ Confirmado             |

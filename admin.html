@@ -1,511 +1,498 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Ripconciv — Administración</title>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ripconciv — Admin</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="js/config.js"></script>
+<link rel="stylesheet" href="js/shared.css">
 <style>
-  :root {
-    --brand:#E8500A; --brand-dark:#BF3D04; --brand-light:#FF7040;
-    --bg:#0F0E0D; --surface:#1C1A18; --card:#242220;
-    --border:#333130; --text:#F5F3F0; --muted:#8C857D;
-    --success:#1DB954; --info:#3B82F6; --warning:#F59E0B;
-  }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Plus Jakarta Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+body.dark{} 
+.main{max-width:1100px;margin:0 auto;padding:28px 22px;}
+.page-head{margin-bottom:24px;}
+.page-head h1{font-family:'Syne',sans-serif;font-size:1.7rem;font-weight:800;margin-bottom:4px;}
+.page-head p{color:var(--muted);font-size:.88rem;}
 
-  /* NAV */
-  .topbar {
-    height:60px; background:var(--surface); border-bottom:1px solid var(--border);
-    display:flex; align-items:center; justify-content:space-between; padding:0 24px;
-    position:sticky; top:0; z-index:50;
-  }
-  .topbar-left { display:flex; align-items:center; gap:12px; }
-  .topbar-logo { font-family:'Syne',sans-serif; font-size:1rem; font-weight:800; }
-  .topbar-logo span { color:var(--brand-light); }
-  .topbar-badge {
-    background:rgba(232,80,10,0.15); border:1px solid rgba(232,80,10,0.3);
-    color:var(--brand-light); padding:3px 10px; border-radius:20px; font-size:0.72rem; font-weight:600;
-  }
-  .topbar-right { display:flex; align-items:center; gap:12px; }
-  .btn-logout {
-    padding:7px 14px; background:transparent; border:1px solid var(--border);
-    border-radius:8px; color:var(--muted); font-size:0.78rem; cursor:pointer;
-    font-family:'Plus Jakarta Sans',sans-serif; transition:all 0.2s;
-  }
-  .btn-logout:hover { border-color:var(--brand); color:var(--brand-light); }
+/* Tabs */
+.tabs{display:flex;gap:4px;background:var(--surface);padding:6px;border-radius:14px;
+  width:fit-content;margin-bottom:26px;flex-wrap:wrap;}
+.tab{padding:9px 18px;border-radius:10px;border:none;background:transparent;color:var(--muted);
+  font-family:'Plus Jakarta Sans',sans-serif;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s;}
+.tab.active{background:var(--card);color:var(--text);box-shadow:0 2px 8px rgba(0,0,0,.3);}
+.tab-panel{display:none;}.tab-panel.active{display:block;}
 
-  /* LAYOUT */
-  .main { max-width:1100px; margin:0 auto; padding:32px 24px; }
+/* Toolbar */
+.toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px;}
+.date-in{background:var(--card);border:1px solid var(--border);border-radius:10px;
+  padding:9px 14px;color:var(--text);font-family:'Plus Jakarta Sans',sans-serif;font-size:.84rem;outline:none;}
+.date-in:focus{border-color:var(--brand);}
+.spacer{flex:1;}
 
-  /* PAGE HEADER */
-  .page-head { margin-bottom:28px; }
-  .page-head h1 { font-family:'Syne',sans-serif; font-size:1.8rem; font-weight:800; margin-bottom:4px; }
-  .page-head p { color:var(--muted); font-size:0.88rem; }
+/* Check status column */
+.status-cell{display:flex;align-items:center;gap:6px;}
+.status-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+.dot-green {background:#22C55E;}
+.dot-orange{background:var(--brand);}
+.dot-yellow{background:var(--warning);}
+.dot-gray  {background:var(--muted);}
 
-  /* TABS */
-  .tabs { display:flex; gap:4px; margin-bottom:28px; background:var(--surface); padding:6px; border-radius:14px; width:fit-content; }
-  .tab {
-    padding:9px 20px; border-radius:10px; border:none; background:transparent;
-    color:var(--muted); font-family:'Plus Jakarta Sans',sans-serif; font-size:0.84rem;
-    font-weight:600; cursor:pointer; transition:all 0.2s;
-  }
-  .tab.active { background:var(--card); color:var(--text); box-shadow:0 2px 8px rgba(0,0,0,0.3); }
+/* Flag row */
+tr.is-flagged td{background:rgba(217,119,6,.06);}
 
-  .tab-panel { display:none; }
-  .tab-panel.active { display:block; }
+/* Clear flag btn */
+.clear-flag-btn{
+  padding:4px 10px;border-radius:6px;border:1px solid rgba(217,119,6,.4);
+  background:rgba(217,119,6,.1);color:var(--warning);font-size:.72rem;font-weight:600;
+  cursor:pointer;transition:all .15s;white-space:nowrap;}
+.clear-flag-btn:hover{background:rgba(217,119,6,.2);}
 
-  /* STATS */
-  .stats-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:14px; margin-bottom:28px; }
-  .stat {
-    background:var(--card); border:1px solid var(--border); border-radius:16px; padding:20px;
-  }
-  .stat.accent { border-color:rgba(232,80,10,0.35); background:rgba(232,80,10,0.07); }
-  .stat-label { font-size:0.72rem; text-transform:uppercase; letter-spacing:0.07em; color:var(--muted); margin-bottom:10px; }
-  .stat-value { font-family:'Syne',sans-serif; font-size:2.2rem; font-weight:800; line-height:1; }
-  .stat.accent .stat-value { color:var(--brand-light); }
-  .stat-sub { font-size:0.75rem; color:var(--muted); margin-top:6px; }
+/* Invite generator */
+.invite-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:24px;margin-bottom:20px;}
+.invite-card h3{font-family:'Syne',sans-serif;font-size:1rem;font-weight:700;margin-bottom:4px;}
+.invite-card p{color:var(--muted);font-size:.82rem;margin-bottom:18px;}
+.invite-row{display:flex;gap:10px;align-items:flex-end;flex-wrap:wrap;}
+.invite-url{background:var(--surface);border:1px solid var(--border);border-radius:10px;
+  padding:10px 14px;font-size:.78rem;color:var(--muted);word-break:break-all;
+  flex:1;min-width:200px;font-family:monospace;}
+#qr-wrap{background:#fff;border-radius:12px;padding:16px;display:inline-block;margin-top:16px;}
 
-  /* TOOLBAR */
-  .toolbar { display:flex; flex-wrap:wrap; gap:10px; align-items:center; margin-bottom:18px; }
-  .date-input {
-    background:var(--card); border:1px solid var(--border); border-radius:10px;
-    padding:9px 14px; color:var(--text); font-family:'Plus Jakarta Sans',sans-serif;
-    font-size:0.84rem; outline:none; transition:border-color 0.2s;
-  }
-  .date-input:focus { border-color:var(--brand); }
-  .btn-sm {
-    padding:9px 16px; border-radius:10px; border:1px solid var(--border);
-    background:var(--card); color:var(--text); font-family:'Plus Jakarta Sans',sans-serif;
-    font-size:0.82rem; font-weight:600; cursor:pointer; transition:all 0.2s; white-space:nowrap;
-  }
-  .btn-sm:hover { border-color:var(--brand); color:var(--brand-light); }
-  .btn-export {
-    padding:9px 16px; border-radius:10px;
-    border:1px solid rgba(29,185,84,0.35); background:rgba(29,185,84,0.08);
-    color:var(--success); font-family:'Plus Jakarta Sans',sans-serif;
-    font-size:0.82rem; font-weight:600; cursor:pointer; transition:all 0.2s; white-space:nowrap;
-  }
-  .btn-export:hover { background:rgba(29,185,84,0.15); }
-  .toolbar-spacer { flex:1; }
+/* Llevar detail in table */
+.llevar-expand{background:rgba(139,92,246,.05);border:1px solid rgba(139,92,246,.15);
+  border-radius:8px;padding:9px 12px;font-size:.76rem;margin-top:4px;}
+.llevar-expand span{color:var(--muted);margin-right:4px;}
 
-  /* TABLE */
-  .table-card { background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden; }
-  .table-head-bar {
-    display:flex; align-items:center; justify-content:space-between;
-    padding:16px 20px; border-bottom:1px solid var(--border);
-  }
-  .table-head-bar h3 { font-family:'Syne',sans-serif; font-size:0.92rem; font-weight:700; }
-  .badge {
-    padding:3px 10px; border-radius:20px; font-size:0.72rem; font-weight:700;
-  }
-  .badge-orange { background:rgba(232,80,10,0.2); color:var(--brand-light); }
-  .table-scroll { overflow-x:auto; }
-  table { width:100%; border-collapse:collapse; }
-  th {
-    padding:11px 18px; text-align:left; font-size:0.7rem; text-transform:uppercase;
-    letter-spacing:0.07em; color:var(--muted); background:var(--surface);
-    border-bottom:1px solid var(--border);
-  }
-  td { padding:13px 18px; font-size:0.86rem; border-bottom:1px solid rgba(51,49,48,0.5); }
-  tr:last-child td { border-bottom:none; }
-  tr:hover td { background:rgba(255,255,255,0.015); }
+/* Month summary day cards */
+.day-cards{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px;margin-top:18px;}
+.day-card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:14px 16px;cursor:pointer;transition:border-color .2s;}
+.day-card:hover{border-color:var(--brand);}
+.day-card-date{font-family:'Syne',sans-serif;font-size:.84rem;font-weight:700;margin-bottom:6px;}
+.day-pills{display:flex;gap:6px;flex-wrap:wrap;}
 
-  .pill {
-    display:inline-flex; align-items:center; gap:5px;
-    padding:4px 10px; border-radius:20px; font-size:0.76rem; font-weight:600;
-  }
-  .pill-completo { background:rgba(232,80,10,0.15); color:var(--brand-light); }
-  .pill-segundo { background:rgba(59,130,246,0.15); color:#93C5FD; }
-
-  .empty { text-align:center; padding:52px 20px; color:var(--muted); }
-  .empty .empty-ico { font-size:2.5rem; margin-bottom:12px; }
-
-  /* HISTORY TAB */
-  .month-picker { display:flex; gap:10px; align-items:center; margin-bottom:20px; }
-  .month-input {
-    background:var(--card); border:1px solid var(--border); border-radius:10px;
-    padding:9px 14px; color:var(--text); font-family:'Plus Jakarta Sans',sans-serif;
-    font-size:0.84rem; outline:none;
-  }
-  .month-input:focus { border-color:var(--brand); }
-
-  /* Heatmap / summary table */
-  .summary-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:12px; margin-top:20px; }
-  .summary-day {
-    background:var(--card); border:1px solid var(--border); border-radius:12px;
-    padding:14px 16px; cursor:pointer; transition:border-color 0.2s;
-  }
-  .summary-day:hover { border-color:var(--brand); }
-  .summary-day-date { font-family:'Syne',sans-serif; font-size:0.84rem; font-weight:700; margin-bottom:6px; }
-  .summary-day-stats { display:flex; gap:8px; }
-  .summary-day-pill {
-    font-size:0.72rem; font-weight:600; padding:3px 8px; border-radius:20px;
-  }
-
-  /* Empleados tab */
-  .emp-search {
-    width:100%; background:var(--card); border:1px solid var(--border); border-radius:10px;
-    padding:11px 16px; color:var(--text); font-family:'Plus Jakarta Sans',sans-serif;
-    font-size:0.86rem; outline:none; margin-bottom:16px;
-  }
-  .emp-search:focus { border-color:var(--brand); }
-  .emp-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(260px,1fr)); gap:10px; }
-  .emp-card {
-    background:var(--card); border:1px solid var(--border); border-radius:12px;
-    padding:14px 16px; display:flex; align-items:center; justify-content:space-between;
-  }
-  .emp-name { font-size:0.82rem; font-weight:500; }
-  .emp-count { font-family:'Syne',sans-serif; font-size:1.1rem; font-weight:800; color:var(--brand-light); }
-  .emp-count-label { font-size:0.68rem; color:var(--muted); }
-
-  /* Loading */
-  .loading { text-align:center; padding:40px; color:var(--muted); font-size:0.88rem; }
-  .spinner {
-    width:20px; height:20px; border:2px solid var(--border); border-top-color:var(--brand);
-    border-radius:50%; animation:spin 0.7s linear infinite; display:inline-block;
-    vertical-align:middle; margin-right:8px;
-  }
-  @keyframes spin { to { transform:rotate(360deg); } }
-
-  @media(max-width:600px) {
-    .main { padding:20px 14px; }
-    .stats-grid { grid-template-columns:1fr 1fr; }
-    th,td { padding:10px 12px; }
-    .tabs { width:100%; }
-    .tab { flex:1; text-align:center; }
-  }
+@media(max-width:600px){.main{padding:18px 12px;} th,td{padding:9px 10px;} .tabs{width:100%;} .tab{flex:1;text-align:center;font-size:.75rem;padding:8px 8px;}}
 </style>
 </head>
-<body>
+<body class="dark">
 
 <div class="topbar">
-  <div class="topbar-left">
+  <div style="display:flex;align-items:center;gap:10px;">
     <div class="topbar-logo">RIP<span>CONCIV</span></div>
-    <div class="topbar-badge">Administrador</div>
+    <div class="topbar-badge">Admin</div>
   </div>
-  <div class="topbar-right">
-    <span style="font-size:0.78rem;color:var(--muted)" id="topbar-fecha"></span>
-    <button class="btn-logout" onclick="logout()">Cerrar sesión</button>
+  <div style="display:flex;align-items:center;gap:12px;">
+    <span style="font-size:.78rem;color:var(--muted)" id="topbar-fecha"></span>
+    <button class="btn btn-ghost" style="font-size:.8rem;padding:7px 14px;" onclick="logout()">Cerrar sesión</button>
   </div>
 </div>
 
 <div class="main">
   <div class="page-head">
     <h1>Panel Administrativo</h1>
-    <p>Registro y control de almuerzos — Ripconciv</p>
+    <p>Ripconciv — Control de almuerzos</p>
   </div>
 
-  <!-- STATS HOY -->
-  <div class="stats-grid" id="stats-grid">
-    <div class="stat accent">
-      <div class="stat-label">Total hoy</div>
-      <div class="stat-value" id="s-total">—</div>
-      <div class="stat-sub">de 37 empleados</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Almuerzo completo</div>
-      <div class="stat-value" id="s-completo">—</div>
-      <div class="stat-sub">hoy</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Solo segundo</div>
-      <div class="stat-value" id="s-segundo">—</div>
-      <div class="stat-sub">hoy</div>
-    </div>
-    <div class="stat">
-      <div class="stat-label">Este mes</div>
-      <div class="stat-value" id="s-mes">—</div>
-      <div class="stat-sub">registros totales</div>
-    </div>
-  </div>
+  <!-- Stats hoy -->
+  <div class="stats-grid" id="stats-top"></div>
 
-  <!-- TABS -->
   <div class="tabs">
-    <button class="tab active" onclick="switchTab('hoy', this)">📋 Hoy</button>
-    <button class="tab" onclick="switchTab('historial', this)">📅 Historial</button>
-    <button class="tab" onclick="switchTab('empleados', this)">👥 Empleados</button>
+    <button class="tab active" onclick="st('hoy',this)">📋 Hoy</button>
+    <button class="tab" onclick="st('asistencia',this)">✅ Asistencia</button>
+    <button class="tab" onclick="st('llevar',this)">🥡 Para llevar</button>
+    <button class="tab" onclick="st('historial',this)">📅 Historial</button>
+    <button class="tab" onclick="st('invitados',this)">🔗 Invitados</button>
   </div>
 
-  <!-- TAB: HOY -->
-  <div class="tab-panel active" id="tab-hoy">
+  <!-- HOY -->
+  <div class="tab-panel active" id="tp-hoy">
     <div class="toolbar">
-      <input type="date" class="date-input" id="filtro-fecha" onchange="cargarHoy()">
-      <button class="btn-sm" onclick="cargarHoy()">🔄 Actualizar</button>
-      <div class="toolbar-spacer"></div>
-      <button class="btn-export" onclick="exportarCSV()">⬇ Exportar CSV</button>
+      <input type="date" class="date-in" id="f-fecha" onchange="cargarHoy()">
+      <button class="btn btn-ghost" onclick="cargarHoy()">🔄</button>
+      <div class="spacer"></div>
+      <button class="btn btn-secondary" onclick="exportCSV()" style="font-size:.82rem;padding:9px 16px;">⬇ CSV</button>
     </div>
     <div class="table-card">
       <div class="table-head-bar">
         <h3>Registros del día</h3>
-        <span class="badge badge-orange" id="badge-count">0 registros</span>
+        <span class="badge badge-orange" id="hoy-badge">0</span>
       </div>
       <div class="table-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>#</th><th>Empleado</th><th>Tipo de almuerzo</th><th>Hora de registro</th>
-            </tr>
-          </thead>
-          <tbody id="tabla-hoy">
-            <tr><td colspan="4"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>
-          </tbody>
+        <table><thead><tr>
+          <th>#</th><th>Empleado</th><th>Modalidad</th><th>Tipo / Detalle</th><th>Hora</th>
+        </tr></thead>
+        <tbody id="hoy-tbody"><tr><td colspan="5"><div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div></td></tr></tbody>
         </table>
       </div>
     </div>
   </div>
 
-  <!-- TAB: HISTORIAL -->
-  <div class="tab-panel" id="tab-historial">
-    <div class="month-picker">
-      <input type="month" class="month-input" id="filtro-mes" onchange="cargarHistorial()">
-      <button class="btn-sm" onclick="cargarHistorial()">🔄 Ver mes</button>
-      <button class="btn-export" onclick="exportarMes()">⬇ Exportar mes</button>
+  <!-- ASISTENCIA -->
+  <div class="tab-panel" id="tp-asistencia">
+    <div class="toolbar">
+      <input type="date" class="date-in" id="f-asist" onchange="cargarAsistencia()">
+      <button class="btn btn-ghost" onclick="cargarAsistencia()">🔄</button>
+      <div class="spacer"></div>
+      <span id="flag-count" style="font-size:.8rem;color:var(--warning);display:none;">
+        ⚠️ <span id="flag-num">0</span> marcas pendientes de revisión
+      </span>
     </div>
-    <div id="historial-content"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+    <div class="table-card">
+      <div class="table-head-bar">
+        <h3>Estado de asistencia</h3>
+        <span class="badge badge-orange" id="asist-badge">0</span>
+      </div>
+      <div class="table-scroll">
+        <table><thead><tr>
+          <th>#</th><th>Empleado</th><th>Tipo</th><th>Estado</th><th>Hora check</th><th>Acción</th>
+        </tr></thead>
+        <tbody id="asist-tbody"><tr><td colspan="6"><div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 
-  <!-- TAB: EMPLEADOS -->
-  <div class="tab-panel" id="tab-empleados">
-    <input type="text" class="emp-search" placeholder="🔍 Buscar empleado..." oninput="filtrarEmpleados(this.value)">
-    <div id="emp-grid-wrap"><div class="loading"><span class="spinner"></span>Cargando...</div></div>
+  <!-- PARA LLEVAR -->
+  <div class="tab-panel" id="tp-llevar">
+    <div class="toolbar">
+      <input type="date" class="date-in" id="f-llevar" onchange="cargarLlevar()">
+      <button class="btn btn-ghost" onclick="cargarLlevar()">🔄</button>
+    </div>
+    <div class="table-card">
+      <div class="table-head-bar">
+        <h3>Pedidos para llevar</h3>
+        <span class="badge" style="background:rgba(139,92,246,.2);color:#C4B5FD;" id="llevar-badge">0</span>
+      </div>
+      <div class="table-scroll">
+        <table><thead><tr>
+          <th>#</th><th>Empleado</th><th>Sopa</th><th>Plato</th><th>Postre</th><th>Bebida</th><th>Recoge</th><th>Asistencia</th>
+        </tr></thead>
+        <tbody id="llevar-tbody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- HISTORIAL -->
+  <div class="tab-panel" id="tp-historial">
+    <div class="toolbar">
+      <input type="month" class="date-in" id="f-mes" onchange="cargarHistorial()">
+      <button class="btn btn-ghost" onclick="cargarHistorial()">🔄</button>
+      <button class="btn btn-secondary" onclick="exportMes()" style="font-size:.82rem;padding:9px 16px;">⬇ Exportar mes</button>
+    </div>
+    <div id="historial-wrap"><div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div></div>
+  </div>
+
+  <!-- INVITADOS -->
+  <div class="tab-panel" id="tp-invitados">
+    <div class="invite-card">
+      <h3>🔗 Generador de links para invitados</h3>
+      <p>Genera un link válido solo para el día seleccionado. Cualquier persona con este link puede registrar su almuerzo sin cuenta Microsoft.</p>
+      <div class="invite-row">
+        <div style="flex:1;min-width:160px;">
+          <label class="form-label">Fecha del link</label>
+          <input type="date" class="date-in" id="inv-fecha" style="width:100%;">
+        </div>
+        <button class="btn btn-primary" onclick="generarInvite()">Generar link</button>
+      </div>
+      <div id="invite-result" style="display:none;margin-top:18px;">
+        <label class="form-label">Link para compartir</label>
+        <div class="invite-url" id="invite-url-text"></div>
+        <div style="display:flex;gap:10px;margin-top:12px;flex-wrap:wrap;">
+          <button class="btn btn-secondary" onclick="copiarLink()">📋 Copiar link</button>
+          <button class="btn btn-success" onclick="compartirWA()">💬 Compartir WhatsApp</button>
+          <button class="btn btn-secondary" onclick="toggleQR()">📷 Ver QR</button>
+        </div>
+        <div id="qr-wrap" style="display:none;margin-top:16px;"></div>
+      </div>
+    </div>
+
+    <div class="table-card">
+      <div class="table-head-bar">
+        <h3>Registros de invitados</h3>
+        <span class="badge badge-blue" id="inv-badge">0</span>
+      </div>
+      <div class="table-scroll">
+        <table><thead><tr>
+          <th>#</th><th>Nombre</th><th>Tipo</th><th>Fecha</th><th>Hora</th>
+        </tr></thead>
+        <tbody id="inv-tbody"><tr><td colspan="5"><div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
 const { createClient } = supabase;
 const db = createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
+if (!requireAuth('admin')) {}
 
-// Auth guard
-if (!requireAuth('admin')) { /* redirect handled */ }
-
-// Init
 document.addEventListener('DOMContentLoaded', () => {
   const hoy = fechaHoy();
   document.getElementById('topbar-fecha').textContent = fechaDisplay(hoy);
-  document.getElementById('filtro-fecha').value = hoy;
-
-  const now = new Date();
-  const mesActual = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-  document.getElementById('filtro-mes').value = mesActual;
-
-  cargarStats();
-  cargarHoy();
+  document.getElementById('f-fecha').value   = hoy;
+  document.getElementById('f-asist').value   = hoy;
+  document.getElementById('f-llevar').value  = hoy;
+  document.getElementById('inv-fecha').value = hoy;
+  const mes = hoy.substring(0,7);
+  document.getElementById('f-mes').value = mes;
+  cargarStats(); cargarHoy(); cargarInvitados();
 });
 
-function logout() { clearSession(); window.location.href = 'login.html'; }
+function logout() { clearSession(); window.location.href='login.html'; }
 
-// ── TABS ──
-function switchTab(name, el) {
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('tab-' + name).classList.add('active');
+function st(tab, el) {
+  document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('tp-'+tab).classList.add('active');
   el.classList.add('active');
-
-  if (name === 'historial') cargarHistorial();
-  if (name === 'empleados') cargarEmpleados();
+  if (tab==='asistencia') cargarAsistencia();
+  if (tab==='llevar')     cargarLlevar();
+  if (tab==='historial')  cargarHistorial();
+  if (tab==='invitados')  cargarInvitados();
 }
 
 // ── STATS ──
 async function cargarStats() {
   const hoy = fechaHoy();
-  const mes = hoy.substring(0, 7);
-
-  const [{ data: dHoy }, { count: cMes }] = await Promise.all([
-    db.from('almuerzos').select('tipo').eq('fecha', hoy),
-    db.from('almuerzos').select('*', { count: 'exact', head: true })
-      .gte('fecha', mes + '-01').lte('fecha', mes + '-31')
+  const mes = hoy.substring(0,7);
+  const [{ data: d }, { count: cMes }] = await Promise.all([
+    db.from('almuerzos').select('*').eq('fecha', hoy),
+    db.from('almuerzos').select('*',{count:'exact',head:true}).gte('fecha',mes+'-01').lte('fecha',mes+'-31')
   ]);
+  const rows = d||[];
+  const conf   = rows.filter(r=>r.asistio).length;
+  const flags  = rows.filter(r=>r.asistio_flag).length;
+  const llevar = rows.filter(r=>r.modalidad==='llevar').length;
 
-  const hoyData = dHoy || [];
-  document.getElementById('s-total').textContent = hoyData.length;
-  document.getElementById('s-completo').textContent = hoyData.filter(r => r.tipo === 'completo').length;
-  document.getElementById('s-segundo').textContent = hoyData.filter(r => r.tipo === 'segundo').length;
-  document.getElementById('s-mes').textContent = cMes || 0;
+  document.getElementById('stats-top').innerHTML = `
+    <div class="stat accent"><div class="stat-label">Total hoy</div><div class="stat-value">${rows.length}</div><div class="stat-sub">de ${CONFIG.totalEmpleados} empleados</div></div>
+    <div class="stat"><div class="stat-label">Confirmados hoy</div><div class="stat-value">${conf}</div><div class="stat-sub">check de cocina</div></div>
+    <div class="stat"><div class="stat-label">Para llevar hoy</div><div class="stat-value">${llevar}</div><div class="stat-sub">pedidos especiales</div></div>
+    <div class="stat"><div class="stat-label">Este mes</div><div class="stat-value">${cMes||0}</div><div class="stat-sub">${flags>0?`⚠️ ${flags} marcas pendientes`:''}</div></div>
+  `;
 }
 
 // ── HOY ──
 async function cargarHoy() {
-  const fecha = document.getElementById('filtro-fecha').value || fechaHoy();
-  const tbody = document.getElementById('tabla-hoy');
-  tbody.innerHTML = `<tr><td colspan="4"><div class="loading"><span class="spinner"></span>Cargando...</div></td></tr>`;
-
+  const fecha = document.getElementById('f-fecha').value || fechaHoy();
+  const tbody = document.getElementById('hoy-tbody');
+  tbody.innerHTML = `<tr><td colspan="5"><div class="loading"><span class="spinner spinner-dark"></span></div></td></tr>`;
   const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
-  const rows = data || [];
-
-  document.getElementById('badge-count').textContent = `${rows.length} registros`;
-
-  if (rows.length === 0) {
-    tbody.innerHTML = `<tr><td colspan="4"><div class="empty"><div class="empty-ico">📋</div>Sin registros para esta fecha</div></td></tr>`;
-    return;
-  }
-
-  tbody.innerHTML = rows.map((r, i) => `
-    <tr>
-      <td style="color:var(--muted);font-size:0.78rem">${i+1}</td>
-      <td style="font-weight:500">${r.empleado}</td>
-      <td><span class="pill ${r.tipo==='completo'?'pill-completo':'pill-segundo'}">
-        ${r.tipo==='completo'?'🍱 Almuerzo Completo':'🍛 Solo Segundo'}
-      </span></td>
+  const rows = data||[];
+  document.getElementById('hoy-badge').textContent = rows.length+' registros';
+  if (!rows.length) { tbody.innerHTML=`<tr><td colspan="5"><div class="empty"><div class="empty-ico">📋</div>Sin registros</div></td></tr>`; return; }
+  tbody.innerHTML = rows.map((r,i)=>{
+    const tipoCel = r.modalidad==='ahi'
+      ? `<span class="pill ${r.tipo==='completo'?'pill-completo':'pill-segundo'}">${r.tipo==='completo'?'🍱 Completo':'🍛 Segundo'}</span>`
+      : `<div style="font-size:.78rem;color:var(--muted);">
+           Sopa:${r.llevar_sopa?'✅':'❌'} | ${r.llevar_plato||'—'} | Postre:${r.llevar_postre?'✅':'❌'}<br>
+           Bebida: ${r.llevar_bebida||'—'} | Recoge: ${r.recogedor||'—'}
+         </div>`;
+    const guestTag = r.tipo_user==='guest' ? '<span class="badge badge-blue" style="margin-left:6px;">Inv</span>' : '';
+    return `<tr>
+      <td style="color:var(--muted);font-size:.76rem">${i+1}</td>
+      <td style="font-weight:500">${r.empleado}${guestTag}</td>
+      <td><span class="pill ${r.modalidad==='ahi'?'pill-ahi':'pill-llevar'}">${r.modalidad==='ahi'?'🪑 Aquí':'🥡 Llevar'}</span></td>
+      <td>${tipoCel}</td>
       <td style="color:var(--muted)">${horaDisplay(r.hora)}</td>
-    </tr>
-  `).join('');
+    </tr>`;
+  }).join('');
+}
+
+// ── ASISTENCIA ──
+async function cargarAsistencia() {
+  const fecha = document.getElementById('f-asist').value || fechaHoy();
+  const tbody = document.getElementById('asist-tbody');
+  tbody.innerHTML = `<tr><td colspan="6"><div class="loading"><span class="spinner spinner-dark"></span></div></td></tr>`;
+  const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  const rows = data||[];
+  document.getElementById('asist-badge').textContent = rows.length;
+  const flags = rows.filter(r=>r.asistio_flag);
+  const fc = document.getElementById('flag-count');
+  if (flags.length) { fc.style.display='inline'; document.getElementById('flag-num').textContent=flags.length; }
+  else fc.style.display='none';
+
+  if (!rows.length) { tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-ico">📋</div>Sin registros</div></td></tr>`; return; }
+
+  tbody.innerHTML = rows.map((r,i)=>{
+    let statusHTML='', dotClass='', label='';
+    if (r.asistio && !r.asistio_flag) {
+      dotClass='dot-green'; label='Confirmado';
+      statusHTML=`<div class="status-cell"><div class="status-dot dot-green"></div><span style="color:#22C55E;font-weight:600;">Confirmado</span></div>`;
+    } else if (r.asistio_flag) {
+      statusHTML=`<div class="status-cell"><div class="status-dot dot-yellow"></div><span style="color:var(--warning);font-weight:600;">⚠️ Rev. pendiente</span></div>`;
+    } else {
+      statusHTML=`<div class="status-cell"><div class="status-dot dot-gray"></div><span style="color:var(--muted);">No confirmado</span></div>`;
+    }
+    const horaCheck = r.asistio_marcado ? horaDisplay(r.asistio_marcado) : '—';
+    const clearBtn  = r.asistio_flag
+      ? `<button class="clear-flag-btn" onclick="clearFlag('${r.id}')">✓ Limpiar marca</button>`
+      : '—';
+    const tipoPill = r.modalidad==='ahi'
+      ? `<span class="pill ${r.tipo==='completo'?'pill-completo':'pill-segundo'}">${r.tipo==='completo'?'🍱 Completo':'🍛 Segundo'}</span>`
+      : `<span class="pill pill-llevar">🥡 Llevar</span>`;
+    return `<tr class="${r.asistio_flag?'is-flagged':''}">
+      <td style="color:var(--muted);font-size:.76rem">${i+1}</td>
+      <td style="font-weight:500">${r.empleado}</td>
+      <td>${tipoPill}</td>
+      <td>${statusHTML}</td>
+      <td style="color:var(--muted)">${horaCheck}</td>
+      <td>${clearBtn}</td>
+    </tr>`;
+  }).join('');
+}
+
+async function clearFlag(id) {
+  if (!confirm('¿Confirmas limpiar esta marca? El registro quedará como NO confirmado.')) return;
+  await db.from('almuerzos').update({ asistio: false, asistio_flag: false, asistio_marcado: null }).eq('id', id);
+  cargarAsistencia(); cargarStats();
+}
+
+// ── PARA LLEVAR ──
+async function cargarLlevar() {
+  const fecha = document.getElementById('f-llevar').value || fechaHoy();
+  const tbody = document.getElementById('llevar-tbody');
+  const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).eq('modalidad','llevar').order('hora');
+  const rows = data||[];
+  document.getElementById('llevar-badge').textContent = rows.length+' pedidos';
+  if (!rows.length) { tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-ico">🥡</div>Sin pedidos para llevar</div></td></tr>`; return; }
+  tbody.innerHTML = rows.map((r,i)=>{
+    const asist = r.asistio
+      ? '<span class="pill pill-confirmed">✅ Confirmado</span>'
+      : (r.asistio_flag ? '<span class="pill pill-flagged">⚠️ Pendiente</span>' : '<span class="pill pill-pending">⏳ Sin confirmar</span>');
+    return `<tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td style="font-weight:500">${r.empleado}</td>
+      <td>${r.llevar_sopa?'✅':'❌'}</td>
+      <td style="font-size:.82rem">${r.llevar_plato||'—'}</td>
+      <td>${r.llevar_postre?'✅':'❌'}</td>
+      <td style="font-size:.82rem">${r.llevar_bebida||'—'}</td>
+      <td style="font-size:.82rem">${r.recogedor||'—'}</td>
+      <td>${asist}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ── HISTORIAL ──
 async function cargarHistorial() {
-  const mes = document.getElementById('filtro-mes').value;
-  if (!mes) return;
-  const [y, m] = mes.split('-');
-  const desde = `${y}-${m}-01`;
-  const hasta = `${y}-${m}-31`;
-
-  document.getElementById('historial-content').innerHTML = `<div class="loading"><span class="spinner"></span>Cargando...</div>`;
-
-  const { data } = await db.from('almuerzos').select('fecha,tipo')
-    .gte('fecha', desde).lte('fecha', hasta).order('fecha');
-
-  const rows = data || [];
-  if (rows.length === 0) {
-    document.getElementById('historial-content').innerHTML = `<div class="empty"><div class="empty-ico">📅</div>Sin registros este mes</div>`;
-    return;
-  }
-
-  // Group by date
-  const byDate = {};
-  rows.forEach(r => {
-    if (!byDate[r.fecha]) byDate[r.fecha] = { completo: 0, segundo: 0 };
-    byDate[r.fecha][r.tipo]++;
+  const mes = document.getElementById('f-mes').value; if(!mes) return;
+  const [y,m] = mes.split('-');
+  document.getElementById('historial-wrap').innerHTML=`<div class="loading"><span class="spinner spinner-dark"></span></div>`;
+  const { data } = await db.from('almuerzos').select('fecha,tipo,modalidad,asistio')
+    .gte('fecha',`${y}-${m}-01`).lte('fecha',`${y}-${m}-31`).order('fecha');
+  const rows = data||[];
+  if (!rows.length) { document.getElementById('historial-wrap').innerHTML=`<div class="empty"><div class="empty-ico">📅</div>Sin registros</div>`; return; }
+  const byDate={};
+  rows.forEach(r=>{
+    if(!byDate[r.fecha]) byDate[r.fecha]={total:0,completo:0,segundo:0,llevar:0,conf:0};
+    byDate[r.fecha].total++;
+    if(r.tipo==='completo') byDate[r.fecha].completo++;
+    if(r.tipo==='segundo')  byDate[r.fecha].segundo++;
+    if(r.modalidad==='llevar') byDate[r.fecha].llevar++;
+    if(r.asistio) byDate[r.fecha].conf++;
   });
-
-  const totalMes = rows.length;
-  const totalCompleto = rows.filter(r => r.tipo === 'completo').length;
-  const totalSegundo = rows.filter(r => r.tipo === 'segundo').length;
-
-  let html = `
+  const total=rows.length, conf=rows.filter(r=>r.asistio).length, llevar=rows.filter(r=>r.modalidad==='llevar').length;
+  document.getElementById('historial-wrap').innerHTML=`
     <div class="stats-grid" style="margin-bottom:20px;">
-      <div class="stat accent"><div class="stat-label">Total del mes</div><div class="stat-value">${totalMes}</div></div>
-      <div class="stat"><div class="stat-label">Completos</div><div class="stat-value">${totalCompleto}</div></div>
-      <div class="stat"><div class="stat-label">Solo segundo</div><div class="stat-value">${totalSegundo}</div></div>
-      <div class="stat"><div class="stat-label">Días con registro</div><div class="stat-value">${Object.keys(byDate).length}</div></div>
+      <div class="stat accent"><div class="stat-label">Total mes</div><div class="stat-value">${total}</div></div>
+      <div class="stat"><div class="stat-label">Confirmados</div><div class="stat-value">${conf}</div></div>
+      <div class="stat"><div class="stat-label">Para llevar</div><div class="stat-value">${llevar}</div></div>
+      <div class="stat"><div class="stat-label">Días activos</div><div class="stat-value">${Object.keys(byDate).length}</div></div>
     </div>
-    <div class="summary-grid">
-  `;
-
-  Object.entries(byDate).sort().forEach(([fecha, counts]) => {
-    const total = counts.completo + counts.segundo;
-    html += `
-      <div class="summary-day" onclick="verDia('${fecha}')">
-        <div class="summary-day-date">${fechaDisplay(fecha)}</div>
-        <div class="summary-day-stats">
-          <span class="summary-day-pill pill-completo">🍱 ${counts.completo}</span>
-          <span class="summary-day-pill pill-segundo">🍛 ${counts.segundo}</span>
-          <span style="font-size:0.72rem;color:var(--muted);margin-left:4px;">${total} total</span>
-        </div>
-      </div>
-    `;
-  });
-
-  html += '</div>';
-  document.getElementById('historial-content').innerHTML = html;
-}
-
-function verDia(fecha) {
-  // Switch to hoy tab and load that date
-  document.getElementById('filtro-fecha').value = fecha;
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-  document.getElementById('tab-hoy').classList.add('active');
-  document.querySelectorAll('.tab')[0].classList.add('active');
-  cargarHoy();
-}
-
-// ── EMPLEADOS ──
-let empData = [];
-
-async function cargarEmpleados() {
-  document.getElementById('emp-grid-wrap').innerHTML = `<div class="loading"><span class="spinner"></span>Cargando...</div>`;
-
-  const { data } = await db.from('almuerzos').select('empleado');
-  const rows = data || [];
-
-  const counts = {};
-  EMPLEADOS.forEach(e => counts[e] = 0);
-  rows.forEach(r => { if (counts[r.empleado] !== undefined) counts[r.empleado]++; });
-
-  empData = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  renderEmpleados(empData);
-}
-
-function renderEmpleados(data) {
-  if (data.length === 0) {
-    document.getElementById('emp-grid-wrap').innerHTML = `<div class="empty"><div class="empty-ico">👥</div>Sin resultados</div>`;
-    return;
-  }
-  document.getElementById('emp-grid-wrap').innerHTML = `
-    <div class="emp-grid">
-      ${data.map(([nombre, count]) => `
-        <div class="emp-card">
-          <div class="emp-name">${nombre}</div>
-          <div style="text-align:right">
-            <div class="emp-count">${count}</div>
-            <div class="emp-count-label">registros</div>
+    <div class="day-cards">
+      ${Object.entries(byDate).sort().map(([f,c])=>`
+        <div class="day-card" onclick="irAFecha('${f}')">
+          <div class="day-card-date">${fechaDisplay(f)}</div>
+          <div class="day-pills">
+            <span class="pill pill-completo">🍱 ${c.completo}</span>
+            <span class="pill pill-segundo">🍛 ${c.segundo}</span>
+            ${c.llevar?`<span class="pill pill-llevar">🥡 ${c.llevar}</span>`:''}
+            <span class="pill pill-confirmed">✅ ${c.conf}</span>
           </div>
-        </div>
-      `).join('')}
-    </div>
-  `;
+        </div>`).join('')}
+    </div>`;
 }
 
-function filtrarEmpleados(q) {
-  const filtered = empData.filter(([n]) => n.toLowerCase().includes(q.toLowerCase()));
-  renderEmpleados(filtered);
+function irAFecha(f) {
+  document.getElementById('f-fecha').value=f;
+  document.getElementById('f-asist').value=f;
+  st('hoy', document.querySelectorAll('.tab')[0]); cargarHoy();
 }
 
-// ── EXPORT CSV ──
-async function exportarCSV() {
-  const fecha = document.getElementById('filtro-fecha').value || fechaHoy();
+// ── INVITADOS ──
+async function cargarInvitados() {
+  const { data } = await db.from('almuerzos').select('*').eq('tipo_user','guest').order('hora',{ascending:false});
+  const rows = data||[];
+  document.getElementById('inv-badge').textContent = rows.length;
+  const tbody = document.getElementById('inv-tbody');
+  if (!rows.length) { tbody.innerHTML=`<tr><td colspan="5"><div class="empty"><div class="empty-ico">🔗</div>Sin invitados registrados</div></td></tr>`; return; }
+  tbody.innerHTML = rows.map((r,i)=>{
+    const t = r.modalidad==='llevar' ? '🥡 Para llevar'
+      : r.tipo==='completo' ? '🍱 Completo' : '🍛 Segundo';
+    return `<tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td style="font-weight:500">${r.empleado}</td>
+      <td>${t}</td>
+      <td>${fechaDisplay(r.fecha)}</td>
+      <td style="color:var(--muted)">${horaDisplay(r.hora)}</td>
+    </tr>`;
+  }).join('');
+}
+
+function generarInvite() {
+  const fecha = document.getElementById('inv-fecha').value || fechaHoy();
+  const token = makeInviteToken(fecha);
+  const base  = window.location.href.replace('admin.html','');
+  const url   = `${base}index.html?inv=${token}&f=${fecha}`;
+  document.getElementById('invite-url-text').textContent = url;
+  document.getElementById('invite-result').style.display = 'block';
+  document.getElementById('qr-wrap').style.display = 'none';
+  document.getElementById('qr-wrap').innerHTML = '';
+  window._inviteUrl = url;
+}
+
+function copiarLink() {
+  navigator.clipboard.writeText(window._inviteUrl||'').then(()=>alert('¡Link copiado!'));
+}
+function compartirWA() {
+  const f = document.getElementById('inv-fecha').value || fechaHoy();
+  const msg = `🏗️ *Ripconciv — Almuerzo ${fechaDisplay(f)}*\n\nEstás invitado a registrar tu almuerzo. Usa este link (válido solo para hoy):\n${window._inviteUrl}`;
+  window.open('https://wa.me/?text='+encodeURIComponent(msg),'_blank');
+}
+function toggleQR() {
+  const wrap = document.getElementById('qr-wrap');
+  if (wrap.style.display==='none') {
+    wrap.style.display='inline-block'; wrap.innerHTML='';
+    new QRCode(wrap,{text:window._inviteUrl,width:200,height:200,colorDark:'#1A1714',colorLight:'#ffffff',correctLevel:QRCode.CorrectLevel.H});
+  } else { wrap.style.display='none'; wrap.innerHTML=''; }
+}
+
+// ── EXPORT ──
+async function exportCSV() {
+  const fecha = document.getElementById('f-fecha').value || fechaHoy();
   const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
-  if (!data || data.length === 0) { alert('No hay datos para exportar.'); return; }
-
-  const rows = [['#','Empleado','Tipo','Fecha','Hora']];
-  data.forEach((r, i) => rows.push([
-    i+1, r.empleado,
-    r.tipo === 'completo' ? 'Almuerzo Completo' : 'Solo Segundo',
-    r.fecha, horaDisplay(r.hora)
-  ]));
-
-  descargarCSV(rows, `ripconciv-almuerzos-${fecha}.csv`);
+  if (!data?.length) { alert('Sin datos.'); return; }
+  const h = ['#','Empleado','Tipo usuario','Modalidad','Tipo','Sopa','Plato','Postre','Bebida','Recogedor','Fecha','Hora','Asistio','Flag'];
+  const rows = data.map((r,i)=>[
+    i+1,r.empleado,r.tipo_user,r.modalidad,r.tipo,
+    r.llevar_sopa??'',r.llevar_plato??'',r.llevar_postre??'',r.llevar_bebida??'',r.recogedor??'',
+    r.fecha,horaDisplay(r.hora),r.asistio?'Sí':'No',r.asistio_flag?'Sí':'No'
+  ]);
+  dlCSV([h,...rows],`ripconciv-${fecha}.csv`);
 }
-
-async function exportarMes() {
-  const mes = document.getElementById('filtro-mes').value;
-  if (!mes) return;
-  const [y, m] = mes.split('-');
-  const { data } = await db.from('almuerzos').select('*')
-    .gte('fecha', `${y}-${m}-01`).lte('fecha', `${y}-${m}-31`).order('fecha').order('hora');
-  if (!data || data.length === 0) { alert('No hay datos para exportar.'); return; }
-
-  const rows = [['#','Empleado','Tipo','Fecha','Hora']];
-  data.forEach((r, i) => rows.push([
-    i+1, r.empleado,
-    r.tipo === 'completo' ? 'Almuerzo Completo' : 'Solo Segundo',
-    r.fecha, horaDisplay(r.hora)
-  ]));
-
-  descargarCSV(rows, `ripconciv-almuerzos-${mes}.csv`);
+async function exportMes() {
+  const mes = document.getElementById('f-mes').value; if(!mes) return;
+  const [y,m] = mes.split('-');
+  const { data } = await db.from('almuerzos').select('*').gte('fecha',`${y}-${m}-01`).lte('fecha',`${y}-${m}-31`).order('fecha').order('hora');
+  if (!data?.length) { alert('Sin datos.'); return; }
+  const h = ['#','Empleado','Modalidad','Tipo','Sopa','Plato','Postre','Bebida','Recogedor','Fecha','Hora','Asistio'];
+  const rows = data.map((r,i)=>[i+1,r.empleado,r.modalidad,r.tipo,r.llevar_sopa??'',r.llevar_plato??'',r.llevar_postre??'',r.llevar_bebida??'',r.recogedor??'',r.fecha,horaDisplay(r.hora),r.asistio?'Sí':'No']);
+  dlCSV([h,...rows],`ripconciv-${mes}.csv`);
 }
-
-function descargarCSV(rows, filename) {
-  const csv = rows.map(r => r.map(c => `"${c}"`).join(',')).join('\n');
-  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
+function dlCSV(rows,name){
+  const csv=rows.map(r=>r.map(c=>`"${String(c).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob(['\ufeff'+csv],{type:'text/csv;charset=utf-8;'})); a.download=name; a.click();
 }
 </script>
 </body>

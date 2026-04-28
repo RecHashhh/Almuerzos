@@ -1,352 +1,330 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Ripconciv — Cocina</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
+<link rel="stylesheet" href="js/shared.css">
 <style>
-  :root {
-    --brand:#E8500A; --brand-dark:#BF3D04; --brand-light:#FF7040;
-    --bg:#F7F4F0; --surface:#FFFFFF; --card:#FFFFFF;
-    --border:#E2DDD8; --text:#1A1714; --muted:#8C857D;
-    --success:#1A9E5C; --info:#2563EB;
-    --shadow: 0 2px 16px rgba(26,23,20,0.07);
-    --shadow-lg: 0 8px 32px rgba(26,23,20,0.12);
-  }
-  * { margin:0; padding:0; box-sizing:border-box; }
-  body { font-family:'Plus Jakarta Sans',sans-serif; background:var(--bg); color:var(--text); min-height:100vh; }
+.topbar-cocina{
+  background:linear-gradient(135deg,var(--brand-dark) 0%,var(--brand) 55%,var(--brand-light) 100%);
+  padding:18px 24px 20px;position:relative;overflow:hidden;}
+.topbar-cocina::after{content:'🍽️';position:absolute;right:-10px;top:-10px;
+  font-size:8rem;opacity:.08;transform:rotate(-10deg);}
+.tc-inner{max-width:680px;margin:0 auto;display:flex;align-items:flex-start;justify-content:space-between;}
+.tc-inner h1{font-family:'Syne',sans-serif;font-size:1.5rem;font-weight:800;color:#fff;margin-bottom:4px;}
+.tc-sub{color:rgba(255,255,255,.75);font-size:.82rem;}
 
-  /* TOP */
-  .topbar {
-    background: linear-gradient(135deg, var(--brand-dark) 0%, var(--brand) 60%, var(--brand-light) 100%);
-    padding:20px 24px 24px;
-    position:relative; overflow:hidden;
-  }
-  .topbar::after { content:'🍽️'; position:absolute; right:-10px; top:-10px; font-size:8rem; opacity:0.08; transform:rotate(-10deg); }
-  .topbar-inner { max-width:640px; margin:0 auto; }
-  .topbar-row { display:flex; align-items:flex-start; justify-content:space-between; }
-  .topbar h1 { font-family:'Syne',sans-serif; font-size:1.6rem; font-weight:800; color:#fff; margin-bottom:4px; }
-  .topbar-sub { color:rgba(255,255,255,0.75); font-size:0.84rem; }
-  .btn-logout {
-    background:rgba(255,255,255,0.2); border:1px solid rgba(255,255,255,0.3);
-    color:#fff; padding:7px 14px; border-radius:8px; font-size:0.76rem;
-    font-family:'Plus Jakarta Sans',sans-serif; cursor:pointer; transition:all 0.2s;
-    white-space:nowrap;
-  }
-  .btn-logout:hover { background:rgba(255,255,255,0.3); }
+.live-bar{background:#fff;border-bottom:1px solid var(--border);padding:9px 24px;}
+.lb-inner{max-width:680px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;font-size:.78rem;color:var(--muted);}
+.live-dot{width:8px;height:8px;border-radius:50%;background:var(--success);
+  display:inline-block;margin-right:6px;animation:pulse 2s ease-in-out infinite;}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
 
-  /* Live indicator */
-  .live-bar {
-    background:#fff; border-bottom:1px solid var(--border);
-    padding:10px 24px;
-    display:flex; align-items:center; justify-content:space-between;
-    font-size:0.78rem; color:var(--muted);
-  }
-  .live-bar-inner { max-width:640px; margin:0 auto; width:100%; display:flex; align-items:center; justify-content:space-between; }
-  .live-dot {
-    width:8px; height:8px; border-radius:50%; background:var(--success);
-    display:inline-block; margin-right:6px;
-    animation:pulse 2s ease-in-out infinite;
-  }
-  @keyframes pulse { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
-  .countdown { font-weight:600; color:var(--brand); }
+.content{max-width:680px;margin:0 auto;padding:22px 20px 40px;}
 
-  /* CONTENT */
-  .content { max-width:640px; margin:0 auto; padding:24px 20px; }
+/* Totals */
+.totals-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;}
+.tot{background:#fff;border:1px solid var(--border);border-radius:14px;padding:16px 12px;text-align:center;box-shadow:var(--shadow);}
+.tot-num{font-family:'Syne',sans-serif;font-size:2.4rem;font-weight:800;line-height:1;margin-bottom:4px;}
+.tot-label{font-size:.68rem;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;}
+.tot.ahi    .tot-num{color:var(--success);}
+.tot.llevar .tot-num{color:#7C3AED;}
+.tot.conf   .tot-num{color:var(--brand);}
+.tot.pend   .tot-num{color:var(--muted);}
 
-  /* BIG NUMBERS */
-  .totales-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:24px; }
-  .total-card {
-    background:var(--card); border:1px solid var(--border); border-radius:20px;
-    padding:24px 20px; text-align:center;
-    box-shadow:var(--shadow);
-    transition: transform 0.2s;
-  }
-  .total-card:active { transform:scale(0.98); }
-  .total-num {
-    font-family:'Syne',sans-serif; font-size:4rem; font-weight:800; line-height:1; margin-bottom:8px;
-    transition: all 0.3s ease;
-  }
-  .total-card.completo .total-num { color:var(--brand); }
-  .total-card.segundo .total-num { color:var(--info); }
-  .total-icon { font-size:1.6rem; margin-bottom:8px; }
-  .total-label { font-size:0.78rem; font-weight:600; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
+/* Tabs */
+.ctabs{display:flex;gap:4px;background:#f1ede9;padding:5px;border-radius:12px;margin-bottom:18px;width:fit-content;}
+.ctab{padding:8px 16px;border-radius:9px;border:none;background:transparent;
+  color:var(--muted);font-family:'Plus Jakarta Sans',sans-serif;font-size:.82rem;font-weight:600;cursor:pointer;transition:all .2s;}
+.ctab.active{background:#fff;color:var(--text);box-shadow:0 2px 6px rgba(0,0,0,.08);}
 
-  /* GRAND TOTAL */
-  .grand-total {
-    background: linear-gradient(135deg, var(--brand-dark), var(--brand));
-    border-radius:16px; padding:18px 20px;
-    display:flex; align-items:center; justify-content:space-between;
-    margin-bottom:24px; box-shadow:0 6px 20px rgba(232,80,10,0.25);
-  }
-  .grand-total-label { color:rgba(255,255,255,0.8); font-size:0.82rem; font-weight:600; }
-  .grand-total-num { font-family:'Syne',sans-serif; font-size:2rem; font-weight:800; color:#fff; }
-  .grand-total-sub { color:rgba(255,255,255,0.6); font-size:0.72rem; }
+.tab-panel{display:none;}.tab-panel.active{display:block;}
 
-  /* LISTS */
-  .list-section { background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden; margin-bottom:16px; box-shadow:var(--shadow); }
-  .list-header {
-    padding:14px 18px; border-bottom:1px solid var(--border);
-    display:flex; align-items:center; justify-content:space-between;
-    background: #FAFAF9;
-  }
-  .list-header-left { display:flex; align-items:center; gap:10px; }
-  .list-header-icon { font-size:1.2rem; }
-  .list-header-title { font-family:'Syne',sans-serif; font-size:0.9rem; font-weight:700; }
-  .list-count {
-    padding:4px 12px; border-radius:20px; font-size:0.76rem; font-weight:700;
-  }
-  .count-completo { background:rgba(232,80,10,0.12); color:var(--brand-dark); }
-  .count-segundo { background:rgba(37,99,235,0.12); color:var(--info); }
+/* Check list */
+.check-list{background:#fff;border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:var(--shadow);}
+.check-list-header{padding:13px 18px;border-bottom:1px solid var(--border);background:#fafaf9;
+  display:flex;align-items:center;justify-content:space-between;}
+.clh-title{font-family:'Syne',sans-serif;font-size:.9rem;font-weight:700;display:flex;align-items:center;gap:8px;}
 
-  .list-item {
-    display:flex; align-items:center;
-    padding:12px 18px; border-bottom:1px solid rgba(226,221,216,0.6);
-    font-size:0.86rem; transition:background 0.15s;
-  }
-  .list-item:last-child { border-bottom:none; }
-  .list-item:hover { background:#FAFAF9; }
-  .list-num {
-    width:26px; height:26px; border-radius:8px;
-    background:var(--bg); display:flex; align-items:center; justify-content:center;
-    font-size:0.7rem; font-weight:700; color:var(--muted); margin-right:12px; flex-shrink:0;
-  }
-  .list-name { flex:1; font-weight:500; }
-  .list-hora { font-size:0.74rem; color:var(--muted); }
+.check-item{display:flex;align-items:center;padding:13px 18px;
+  border-bottom:1px solid rgba(226,221,216,.5);transition:background .15s;gap:12px;}
+.check-item:last-child{border-bottom:none;}
+.check-item:hover{background:#fafaf9;}
+.check-item.confirmed{background:#f0fdf4;}
+.check-item.flagged{background:#fffbeb;}
 
-  .list-empty { padding:24px; text-align:center; color:var(--muted); font-size:0.84rem; }
+.ci-num{width:26px;height:26px;border-radius:8px;background:var(--bg);
+  display:flex;align-items:center;justify-content:center;font-size:.7rem;font-weight:700;color:var(--muted);flex-shrink:0;}
+.ci-info{flex:1;min-width:0;}
+.ci-name{font-size:.86rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ci-meta{font-size:.72rem;color:var(--muted);margin-top:2px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.ci-hora{font-size:.72rem;color:var(--muted);}
 
-  /* ACTIONS */
-  .actions { display:grid; gap:10px; margin-top:8px; }
-  .btn-whatsapp {
-    display:flex; align-items:center; justify-content:center; gap:10px;
-    padding:16px; background:linear-gradient(135deg, #128C7E, #25D366);
-    color:#fff; border:none; border-radius:14px;
-    font-family:'Syne',sans-serif; font-size:0.95rem; font-weight:700;
-    cursor:pointer; transition:all 0.2s;
-    box-shadow:0 6px 18px rgba(37,211,102,0.3);
-  }
-  .btn-whatsapp:hover { transform:translateY(-2px); box-shadow:0 10px 24px rgba(37,211,102,0.4); }
-  .btn-refresh {
-    display:flex; align-items:center; justify-content:center; gap:8px;
-    padding:13px; background:var(--card); border:1.5px solid var(--border);
-    border-radius:14px; font-family:'Plus Jakarta Sans',sans-serif; font-size:0.86rem;
-    font-weight:600; color:var(--text); cursor:pointer; transition:all 0.2s;
-  }
-  .btn-refresh:hover { border-color:var(--brand); color:var(--brand); }
+/* Llevar detail expand */
+.ci-llevar-detail{background:rgba(139,92,246,.04);border:1px solid rgba(139,92,246,.15);
+  border-radius:10px;padding:10px 12px;margin-top:6px;font-size:.78rem;color:var(--text);}
+.ci-llevar-row{display:flex;gap:8px;margin-bottom:4px;}
+.ci-llevar-row:last-child{margin-bottom:0;}
+.ci-llevar-key{color:var(--muted);min-width:90px;flex-shrink:0;}
+.ci-llevar-val{font-weight:500;}
 
-  /* New item flash animation */
-  @keyframes flashNew {
-    from { background:#FFF4F0; }
-    to { background:transparent; }
-  }
-  .list-item.new { animation:flashNew 2s ease; }
+/* Check button */
+.check-btn{
+  width:42px;height:42px;border-radius:12px;border:2px solid var(--border);
+  background:var(--bg);cursor:pointer;transition:all .2s;
+  display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;}
+.check-btn:hover{border-color:var(--success);}
+.check-btn.checked{background:var(--success);border-color:var(--success);}
+.check-btn.flagged{background:var(--warning);border-color:var(--warning);}
+
+/* Uncheck confirm tooltip */
+.uncheck-hint{font-size:.68rem;color:var(--warning);margin-top:4px;text-align:center;display:none;}
+.check-item.flagged .uncheck-hint{display:block;}
+
+/* WhatsApp */
+.wa-btn{display:flex;align-items:center;justify-content:center;gap:10px;
+  width:100%;padding:15px;background:linear-gradient(135deg,#128C7E,#25D366);
+  color:#fff;border:none;border-radius:14px;font-family:'Syne',sans-serif;
+  font-size:.95rem;font-weight:700;cursor:pointer;transition:all .2s;
+  box-shadow:0 6px 18px rgba(37,211,102,.25);margin-top:18px;}
+.wa-btn:hover{transform:translateY(-2px);box-shadow:0 10px 24px rgba(37,211,102,.35);}
+
+@keyframes flashGreen{from{background:#dcfce7}to{background:transparent}}
+.check-item.flash-green{animation:flashGreen 1.2s ease;}
+@media(max-width:520px){.totals-row{grid-template-columns:1fr 1fr;}}
 </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="topbar-inner">
-    <div class="topbar-row">
-      <div>
-        <h1>🍽️ Almuerzos del Día</h1>
-        <div class="topbar-sub" id="fecha-display">Cargando...</div>
-      </div>
-      <button class="btn-logout" onclick="logout()">Salir</button>
+<div class="topbar-cocina">
+  <div class="tc-inner">
+    <div>
+      <h1>🍽️ Almuerzos del Día</h1>
+      <div class="tc-sub" id="fecha-display"></div>
     </div>
+    <button class="btn btn-ghost" style="color:rgba(255,255,255,.8);border-color:rgba(255,255,255,.3);" onclick="logout()">Salir</button>
   </div>
 </div>
 
 <div class="live-bar">
-  <div class="live-bar-inner">
-    <span><span class="live-dot"></span>Actualizando en tiempo real</span>
-    <span>Próxima actualización: <span class="countdown" id="countdown">30s</span></span>
+  <div class="lb-inner">
+    <span><span class="live-dot"></span>Actualización en tiempo real</span>
+    <span>Siguiente en <strong id="countdown">30s</strong></span>
   </div>
 </div>
 
 <div class="content">
-
-  <!-- TOTALES -->
-  <div class="totales-grid">
-    <div class="total-card completo">
-      <div class="total-icon">🍱</div>
-      <div class="total-num" id="num-completo">0</div>
-      <div class="total-label">Almuerzo<br>Completo</div>
+  <!-- Totals -->
+  <div class="totals-row">
+    <div class="tot ahi">
+      <div class="tot-num" id="tot-ahi">0</div>
+      <div class="tot-label">Comen aquí</div>
     </div>
-    <div class="total-card segundo">
-      <div class="total-icon">🍛</div>
-      <div class="total-num" id="num-segundo">0</div>
-      <div class="total-label">Solo<br>Segundo</div>
+    <div class="tot llevar">
+      <div class="tot-num" id="tot-llevar">0</div>
+      <div class="tot-label">Para llevar</div>
+    </div>
+    <div class="tot conf">
+      <div class="tot-num" id="tot-conf">0</div>
+      <div class="tot-label">Confirmados</div>
+    </div>
+    <div class="tot pend">
+      <div class="tot-num" id="tot-pend">0</div>
+      <div class="tot-label">Pendientes</div>
     </div>
   </div>
 
-  <div class="grand-total">
-    <div>
-      <div class="grand-total-label">Total registrados hoy</div>
-      <div class="grand-total-sub" id="grand-sub">de 37 empleados</div>
-    </div>
-    <div class="grand-total-num" id="num-total">0</div>
+  <!-- Tabs -->
+  <div class="ctabs">
+    <button class="ctab active" onclick="switchTab('todos',this)">Todos</button>
+    <button class="ctab" onclick="switchTab('ahi',this)">🪑 Aquí</button>
+    <button class="ctab" onclick="switchTab('llevar',this)">🥡 Para llevar</button>
+    <button class="ctab" onclick="switchTab('pendiente',this)">⏳ Pendientes</button>
   </div>
 
-  <!-- LISTA COMPLETOS -->
-  <div class="list-section">
-    <div class="list-header">
-      <div class="list-header-left">
-        <span class="list-header-icon">🍱</span>
-        <span class="list-header-title">Almuerzo Completo</span>
-      </div>
-      <span class="list-count count-completo" id="badge-completo">0 personas</span>
-    </div>
-    <div id="lista-completo"><div class="list-empty">Sin registros aún</div></div>
+  <div class="tab-panel active" id="panel-todos">
+    <div class="check-list" id="list-todos"></div>
+  </div>
+  <div class="tab-panel" id="panel-ahi">
+    <div class="check-list" id="list-ahi"></div>
+  </div>
+  <div class="tab-panel" id="panel-llevar">
+    <div class="check-list" id="list-llevar"></div>
+  </div>
+  <div class="tab-panel" id="panel-pendiente">
+    <div class="check-list" id="list-pendiente"></div>
   </div>
 
-  <!-- LISTA SEGUNDOS -->
-  <div class="list-section">
-    <div class="list-header">
-      <div class="list-header-left">
-        <span class="list-header-icon">🍛</span>
-        <span class="list-header-title">Solo Segundo</span>
-      </div>
-      <span class="list-count count-segundo" id="badge-segundo">0 personas</span>
-    </div>
-    <div id="lista-segundo"><div class="list-empty">Sin registros aún</div></div>
-  </div>
-
-  <!-- ACCIONES -->
-  <div class="actions">
-    <button class="btn-whatsapp" onclick="enviarWhatsApp()">
-      💬 Enviar resumen por WhatsApp
-    </button>
-    <button class="btn-refresh" onclick="cargar(true)">
-      🔄 Actualizar ahora
-    </button>
-  </div>
-
+  <button class="wa-btn" onclick="enviarWA()">💬 Enviar resumen por WhatsApp</button>
 </div>
 
 <script>
 const { createClient } = supabase;
 const db = createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
+if (!requireAuth('cocina')) {}
 
-if (!requireAuth('cocina')) { /* redirect handled */ }
-
-let lastData = [];
-let countdownVal = CONFIG.refreshInterval / 1000;
-let countdownTimer = null;
-let refreshTimer = null;
+let allData = [];
+let activeTab = 'todos';
+let cdVal = CONFIG.refreshInterval / 1000;
 
 document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('fecha-display').textContent = fechaDisplay(fechaHoy());
-  cargar(false);
-  iniciarAutoRefresh();
+  cargar();
+  setInterval(() => {
+    cdVal--;
+    document.getElementById('countdown').textContent = cdVal + 's';
+    if (cdVal <= 0) { cdVal = CONFIG.refreshInterval/1000; cargar(); }
+  }, 1000);
 });
 
 function logout() { clearSession(); window.location.href = 'login.html'; }
 
-// ── CARGA DATOS ──
-async function cargar(flash = false) {
-  const hoy = fechaHoy();
-  const { data } = await db.from('almuerzos').select('*').eq('fecha', hoy).order('hora');
-  const rows = data || [];
-
-  const completos = rows.filter(r => r.tipo === 'completo');
-  const segundos  = rows.filter(r => r.tipo === 'segundo');
-
-  // Detectar nuevos registros para animación
-  const prevIds = new Set(lastData.map(r => r.id));
-  const newIds  = new Set(rows.filter(r => !prevIds.has(r.id)).map(r => r.id));
-  lastData = rows;
-
-  // Actualizar números
-  animateNumber('num-completo', completos.length);
-  animateNumber('num-segundo',  segundos.length);
-  animateNumber('num-total',    rows.length);
-
-  document.getElementById('badge-completo').textContent = `${completos.length} persona${completos.length !== 1 ? 's' : ''}`;
-  document.getElementById('badge-segundo').textContent  = `${segundos.length} persona${segundos.length !== 1 ? 's' : ''}`;
-  document.getElementById('grand-sub').textContent = `de 37 empleados (${Math.round(rows.length/37*100)}%)`;
-
-  renderLista(completos, 'lista-completo', newIds);
-  renderLista(segundos,  'lista-segundo',  newIds);
+function switchTab(tab, el) {
+  activeTab = tab;
+  document.querySelectorAll('.ctab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  el.classList.add('active');
+  document.getElementById('panel-'+tab).classList.add('active');
 }
 
-function renderLista(items, containerId, newIds) {
+async function cargar() {
+  const { data } = await db.from('almuerzos').select('*').eq('fecha', fechaHoy()).order('hora');
+  allData = data || [];
+
+  const ahi    = allData.filter(r => r.modalidad === 'ahi');
+  const llevar = allData.filter(r => r.modalidad === 'llevar');
+  const conf   = allData.filter(r => r.asistio);
+  const pend   = allData.filter(r => !r.asistio);
+
+  document.getElementById('tot-ahi').textContent    = ahi.length;
+  document.getElementById('tot-llevar').textContent = llevar.length;
+  document.getElementById('tot-conf').textContent   = conf.length;
+  document.getElementById('tot-pend').textContent   = pend.length;
+
+  renderList(allData,  'list-todos');
+  renderList(ahi,      'list-ahi');
+  renderList(llevar,   'list-llevar');
+  renderList(pend,     'list-pendiente');
+}
+
+function renderList(items, containerId) {
   const el = document.getElementById(containerId);
-  if (items.length === 0) {
-    el.innerHTML = '<div class="list-empty">Sin registros aún</div>';
+  if (!items.length) {
+    el.innerHTML = '<div class="empty"><div class="empty-ico">✅</div>Sin registros en esta categoría</div>';
     return;
   }
-  el.innerHTML = items.map((r, i) => `
-    <div class="list-item ${newIds.has(r.id) ? 'new' : ''}">
-      <div class="list-num">${i+1}</div>
-      <div class="list-name">${r.empleado}</div>
-      <div class="list-hora">${horaDisplay(r.hora)}</div>
-    </div>
-  `).join('');
-}
 
-function animateNumber(id, target) {
-  const el = document.getElementById(id);
-  const current = parseInt(el.textContent) || 0;
-  if (current === target) return;
-  el.textContent = target;
-  el.style.transform = 'scale(1.15)';
-  el.style.color = target > current ? 'var(--success)' : undefined;
-  setTimeout(() => {
-    el.style.transform = '';
-    // Restore original color after animation
-    setTimeout(() => { el.style.color = ''; }, 300);
-  }, 300);
-}
+  el.innerHTML = items.map((r, i) => {
+    const isConf   = r.asistio;
+    const isFlagged= r.asistio_flag;
 
-// ── AUTO REFRESH ──
-function iniciarAutoRefresh() {
-  clearInterval(refreshTimer);
-  clearInterval(countdownTimer);
-  countdownVal = CONFIG.refreshInterval / 1000;
+    let statusClass = '';
+    if (isConf && !isFlagged)  statusClass = 'confirmed';
+    if (isFlagged)              statusClass = 'flagged';
 
-  countdownTimer = setInterval(() => {
-    countdownVal--;
-    document.getElementById('countdown').textContent = countdownVal + 's';
-    if (countdownVal <= 0) {
-      countdownVal = CONFIG.refreshInterval / 1000;
-      cargar(false);
+    const checkIcon = isConf ? (isFlagged ? '⚠️' : '✅') : '○';
+    const checkClass = isConf ? (isFlagged ? 'flagged' : 'checked') : '';
+
+    const modalityPill = r.modalidad === 'ahi'
+      ? '<span class="pill pill-ahi">🪑 Aquí</span>'
+      : '<span class="pill pill-llevar">🥡 Llevar</span>';
+
+    const tipoPill = r.modalidad === 'ahi'
+      ? `<span class="pill ${r.tipo==='completo'?'pill-completo':'pill-segundo'}">${r.tipo==='completo'?'🍱 Completo':'🍛 Segundo'}</span>`
+      : '';
+
+    let guestBadge = r.tipo_user === 'guest' ? '<span class="badge badge-blue">Invitado</span>' : '';
+    let flagNote   = isFlagged ? '<span style="color:var(--warning);font-size:.7rem;">⚠️ Desmarcado — pendiente revisión admin</span>' : '';
+
+    let llevarDetail = '';
+    if (r.modalidad === 'llevar') {
+      llevarDetail = `<div class="ci-llevar-detail">
+        <div class="ci-llevar-row"><span class="ci-llevar-key">Sopa:</span><span class="ci-llevar-val">${r.llevar_sopa ? '✅ Sí':'❌ No'}</span></div>
+        <div class="ci-llevar-row"><span class="ci-llevar-key">Plato:</span><span class="ci-llevar-val">${r.llevar_plato||'—'}</span></div>
+        <div class="ci-llevar-row"><span class="ci-llevar-key">Postre:</span><span class="ci-llevar-val">${r.llevar_postre ? '✅ Sí':'❌ No'}</span></div>
+        <div class="ci-llevar-row"><span class="ci-llevar-key">Bebida:</span><span class="ci-llevar-val">${r.llevar_bebida||'—'}</span></div>
+        <div class="ci-llevar-row"><span class="ci-llevar-key">Recoge:</span><span class="ci-llevar-val">${r.recogedor||'—'}</span></div>
+      </div>`;
     }
-  }, 1000);
+
+    return `
+      <div class="check-item ${statusClass}" id="ci-${r.id}">
+        <div class="ci-num">${i+1}</div>
+        <div class="ci-info">
+          <div class="ci-name">${r.empleado} ${guestBadge}</div>
+          <div class="ci-meta">
+            ${modalityPill}${tipoPill}
+            <span class="ci-hora">${horaDisplay(r.hora)}</span>
+            ${flagNote}
+          </div>
+          ${llevarDetail}
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;">
+          <button class="check-btn ${checkClass}" onclick="toggleCheck('${r.id}', ${isConf}, ${isFlagged})"
+            title="${isConf ? 'Desmarcar asistencia' : 'Confirmar asistencia'}">
+            ${checkIcon}
+          </button>
+          <div class="uncheck-hint">⚠️ Rev.<br>admin</div>
+        </div>
+      </div>`;
+  }).join('');
 }
 
-// ── WHATSAPP ──
-async function enviarWhatsApp() {
-  const hoy = fechaHoy();
-  const { data } = await db.from('almuerzos').select('*').eq('fecha', hoy).order('empleado');
-  const rows = data || [];
+async function toggleCheck(id, isConf, isFlagged) {
+  // Logic:
+  // Not confirmed → confirm (asistio=true, flag=false)
+  // Confirmed (no flag) → uncheck (asistio=false, flag=true = desmarcado por cocina)
+  // Flagged → re-confirm (asistio=true, flag=false) — cocina can re-check
 
-  const completos = rows.filter(r => r.tipo === 'completo');
-  const segundos  = rows.filter(r => r.tipo === 'segundo');
-
-  let msg = `🏗️ *RIPCONCIV — Almuerzos*\n`;
-  msg += `📅 ${fechaDisplay(hoy)}\n\n`;
-  msg += `📊 *RESUMEN DEL DÍA:*\n`;
-  msg += `🍱 Almuerzo Completo: *${completos.length}*\n`;
-  msg += `🍛 Solo Segundo: *${segundos.length}*\n`;
-  msg += `👥 Total: *${rows.length} personas*\n\n`;
-
-  if (completos.length > 0) {
-    msg += `─────────────────\n`;
-    msg += `🍱 *ALMUERZO COMPLETO (${completos.length}):*\n`;
-    completos.forEach((r, i) => { msg += `${i+1}. ${r.empleado}\n`; });
-    msg += '\n';
-  }
-  if (segundos.length > 0) {
-    msg += `─────────────────\n`;
-    msg += `🍛 *SOLO SEGUNDO (${segundos.length}):*\n`;
-    segundos.forEach((r, i) => { msg += `${i+1}. ${r.empleado}\n`; });
+  let update = {};
+  if (!isConf) {
+    // Mark as attended
+    update = { asistio: true, asistio_marcado: new Date().toISOString(), asistio_flag: false };
+  } else if (!isFlagged) {
+    // Uncheck — flag for admin review
+    update = { asistio: false, asistio_marcado: null, asistio_flag: true };
+  } else {
+    // Re-confirm after flag
+    update = { asistio: true, asistio_marcado: new Date().toISOString(), asistio_flag: false };
   }
 
-  window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+  await db.from('almuerzos').update(update).eq('id', id);
+  await cargar();
+
+  // Flash the row
+  const el = document.getElementById('ci-'+id);
+  if (el) { el.classList.add('flash-green'); setTimeout(()=>el.classList.remove('flash-green'),1200); }
+}
+
+async function enviarWA() {
+  const ahi    = allData.filter(r => r.modalidad === 'ahi');
+  const llevar = allData.filter(r => r.modalidad === 'llevar');
+  const conf   = allData.filter(r => r.asistio);
+
+  let msg = `🏗️ *RIPCONCIV — Almuerzos*\n📅 ${fechaDisplay(fechaHoy())}\n\n`;
+  msg += `📊 *RESUMEN:*\n`;
+  msg += `🪑 Comen aquí: *${ahi.length}*\n`;
+  msg += `🥡 Para llevar: *${llevar.length}*\n`;
+  msg += `✅ Confirmados: *${conf.length}* / ${allData.length}\n\n`;
+
+  if (ahi.length) {
+    const comp = ahi.filter(r=>r.tipo==='completo');
+    const seg  = ahi.filter(r=>r.tipo==='segundo');
+    msg += `─────────────\n🍱 Completo (${comp.length}): ${comp.map(r=>r.empleado).join(', ')}\n`;
+    msg += `🍛 Segundo (${seg.length}): ${seg.map(r=>r.empleado).join(', ')}\n\n`;
+  }
+  if (llevar.length) {
+    msg += `─────────────\n🥡 *PARA LLEVAR (${llevar.length}):*\n`;
+    llevar.forEach((r,i) => {
+      msg += `${i+1}. ${r.empleado}\n`;
+      msg += `   Sopa:${r.llevar_sopa?'✅':'❌'} | Plato: ${r.llevar_plato} | Postre:${r.llevar_postre?'✅':'❌'} | Bebida: ${r.llevar_bebida}\n`;
+      msg += `   Recoge: ${r.recogedor}\n`;
+    });
+  }
+  window.open('https://wa.me/?text='+encodeURIComponent(msg), '_blank');
 }
 </script>
 </body>

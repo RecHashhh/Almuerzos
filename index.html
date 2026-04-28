@@ -465,16 +465,50 @@ async function loginMicrosoft() {
 }
 
 function onMsalSuccess(resp) {
-  const account = resp.account || msalApp.getAllAccounts()[0];
-  const email   = account.username || '';
-  const domain  = email.split('@')[1] || '';
+  const account = resp?.account || msalApp.getAllAccounts()[0];
+
+  if (!account) {
+    showAlert('alert-err', 'No se pudo obtener la cuenta Microsoft.');
+    return;
+  }
+
+  const claims = account.idTokenClaims || {};
+
+  const email =
+    account.username ||
+    claims.preferred_username ||
+    claims.upn ||
+    '';
+
+  const domain = email.split('@')[1] || '';
+
   if (domain.toLowerCase() !== CONFIG.dominioPermitido) {
     showAlert('alert-err', `Solo se permiten cuentas @${CONFIG.dominioPermitido}.`);
     msalApp.logoutRedirect();
     return;
   }
-  const name = account.name || email.split('@')[0].replace(/\./g,' ').toUpperCase();
-  currentUser = { name, email, tipo: 'ms' };
+
+  // Construcción robusta del nombre
+  let rawName =
+    account.name ||
+    claims.name ||
+    `${claims.given_name || ''} ${claims.family_name || ''}`.trim() ||
+    email.split('@')[0].replace(/\./g, ' ').toUpperCase();
+
+  rawName = rawName.trim();
+
+  if (!rawName) {
+    rawName = 'USUARIO SIN NOMBRE';
+  }
+
+  currentUser = {
+    name: rawName.toUpperCase(),
+    email,
+    tipo: 'ms'
+  };
+
+  console.log('Usuario Microsoft cargado:', currentUser);
+
   showFormView();
 }
 

@@ -254,7 +254,7 @@ function renderList(items, containerId) {
       <div class="check-item ${statusClass}" id="ci-${r.id}">
         <div class="ci-num">${i+1}</div>
         <div class="ci-info">
-          <div class="ci-name">${empleadoRegistro(r)} ${guestBadge}</div>
+          <div class="ci-name">${r.empleado} ${guestBadge}</div>
           <div class="ci-meta">
             ${modalityPill}${tipoPill}
             <span class="ci-hora">${horaDisplay(r.hora)}</span>
@@ -313,13 +313,13 @@ async function enviarWA() {
   if (ahi.length) {
     const comp = ahi.filter(r=>r.tipo==='completo');
     const seg  = ahi.filter(r=>r.tipo==='segundo');
-    msg += `─────────────\n🍱 Completo (${comp.length}): ${comp.map(r=>empleadoRegistro(r)).join(', ')}\n`;
-    msg += `🍛 Segundo (${seg.length}): ${seg.map(r=>empleadoRegistro(r)).join(', ')}\n\n`;
+    msg += `─────────────\n🍱 Completo (${comp.length}): ${comp.map(r=>r.empleado).join(', ')}\n`;
+    msg += `🍛 Segundo (${seg.length}): ${seg.map(r=>r.empleado).join(', ')}\n\n`;
   }
   if (llevar.length) {
     msg += `─────────────\n🥡 *PARA LLEVAR (${llevar.length}):*\n`;
     llevar.forEach((r,i) => {
-      msg += `${i+1}. ${empleadoRegistro(r)}\n`;
+      msg += `${i+1}. ${r.empleado}\n`;
       msg += `   Sopa:${r.llevar_sopa?'✅':'❌'} | Plato: ${r.llevar_plato} | Postre:${r.llevar_postre?'✅':'❌'} | Bebida: ${r.llevar_bebida}\n`;
       msg += `   Recoge: ${r.recogedor}\n`;
     });

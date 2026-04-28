@@ -453,11 +453,11 @@ function onMsalSuccess(resp) {
   const domain  = email.split('@')[1] || '';
   if (domain.toLowerCase() !== CONFIG.dominioPermitido) {
     showAlert('alert-err', `Solo se permiten cuentas @${CONFIG.dominioPermitido}.`);
+    msalApp.logoutRedirect();
     return;
   }
-  const rawName = account.name || email.split('@')[0].replace(/\./g,' ').toUpperCase();
-  const name = empleadoCanonico(rawName);
-  currentUser = { name, email, tipo: 'ms', rawName };
+  const name = account.name || email.split('@')[0].replace(/\./g,' ').toUpperCase();
+  currentUser = { name, email, tipo: 'ms' };
   showFormView();
 }
 
@@ -548,11 +548,10 @@ async function registrar() {
   hideAlerts();
 
   const hoy = fechaHoy();
-  const empleado = empleadoRegistro(currentUser);
 
   // Duplicate check
   const { data: dup } = await db.from('almuerzos')
-    .select('id').eq('empleado', empleado).eq('fecha', hoy).limit(1);
+    .select('id').eq('empleado', currentUser.name).eq('fecha', hoy).limit(1);
   if (dup && dup.length > 0) {
     showAlert('alert-dup');
     btn.disabled = false; btn.innerHTML = 'Confirmar Registro'; return;
@@ -560,7 +559,7 @@ async function registrar() {
 
   // Build record
   const record = {
-    empleado:   empleado,
+    empleado:   currentUser.name,
     email:      currentUser.email,
     tipo_user:  currentUser.tipo,      // ms | guest
     fecha:      hoy,

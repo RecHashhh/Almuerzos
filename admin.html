@@ -227,10 +227,6 @@ const { createClient } = supabase;
 const db = createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
 if (!requireAuth('admin')) {}
 
-function nombreRegistro(r) {
-  return empleadoRegistro(r);
-}
-
 document.addEventListener('DOMContentLoaded', () => {
   const hoy = fechaHoy();
   document.getElementById('topbar-fecha').textContent = fechaDisplay(hoy);
@@ -287,7 +283,6 @@ async function cargarHoy() {
   document.getElementById('hoy-badge').textContent = rows.length+' registros';
   if (!rows.length) { tbody.innerHTML=`<tr><td colspan="5"><div class="empty"><div class="empty-ico">📋</div>Sin registros</div></td></tr>`; return; }
   tbody.innerHTML = rows.map((r,i)=>{
-    const empleado = nombreRegistro(r);
     const tipoCel = r.modalidad==='ahi'
       ? `<span class="pill ${r.tipo==='completo'?'pill-completo':'pill-segundo'}">${r.tipo==='completo'?'🍱 Completo':'🍛 Segundo'}</span>`
       : `<div style="font-size:.78rem;color:var(--muted);">
@@ -297,7 +292,7 @@ async function cargarHoy() {
     const guestTag = r.tipo_user==='guest' ? '<span class="badge badge-blue" style="margin-left:6px;">Inv</span>' : '';
     return `<tr>
       <td style="color:var(--muted);font-size:.76rem">${i+1}</td>
-      <td style="font-weight:500">${empleado}${guestTag}</td>
+      <td style="font-weight:500">${r.empleado}${guestTag}</td>
       <td><span class="pill ${r.modalidad==='ahi'?'pill-ahi':'pill-llevar'}">${r.modalidad==='ahi'?'🪑 Aquí':'🥡 Llevar'}</span></td>
       <td>${tipoCel}</td>
       <td style="color:var(--muted)">${horaDisplay(r.hora)}</td>
@@ -321,7 +316,6 @@ async function cargarAsistencia() {
   if (!rows.length) { tbody.innerHTML=`<tr><td colspan="6"><div class="empty"><div class="empty-ico">📋</div>Sin registros</div></td></tr>`; return; }
 
   tbody.innerHTML = rows.map((r,i)=>{
-    const empleado = nombreRegistro(r);
     let statusHTML='', dotClass='', label='';
     if (r.asistio && !r.asistio_flag) {
       dotClass='dot-green'; label='Confirmado';
@@ -340,7 +334,7 @@ async function cargarAsistencia() {
       : `<span class="pill pill-llevar">🥡 Llevar</span>`;
     return `<tr class="${r.asistio_flag?'is-flagged':''}">
       <td style="color:var(--muted);font-size:.76rem">${i+1}</td>
-      <td style="font-weight:500">${empleado}</td>
+      <td style="font-weight:500">${r.empleado}</td>
       <td>${tipoPill}</td>
       <td>${statusHTML}</td>
       <td style="color:var(--muted)">${horaCheck}</td>
@@ -364,13 +358,12 @@ async function cargarLlevar() {
   document.getElementById('llevar-badge').textContent = rows.length+' pedidos';
   if (!rows.length) { tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-ico">🥡</div>Sin pedidos para llevar</div></td></tr>`; return; }
   tbody.innerHTML = rows.map((r,i)=>{
-    const empleado = nombreRegistro(r);
     const asist = r.asistio
       ? '<span class="pill pill-confirmed">✅ Confirmado</span>'
       : (r.asistio_flag ? '<span class="pill pill-flagged">⚠️ Pendiente</span>' : '<span class="pill pill-pending">⏳ Sin confirmar</span>');
     return `<tr>
       <td style="color:var(--muted)">${i+1}</td>
-      <td style="font-weight:500">${empleado}</td>
+      <td style="font-weight:500">${r.empleado}</td>
       <td>${r.llevar_sopa?'✅':'❌'}</td>
       <td style="font-size:.82rem">${r.llevar_plato||'—'}</td>
       <td>${r.llevar_postre?'✅':'❌'}</td>
@@ -439,7 +432,7 @@ async function cargarInvitados() {
       : r.tipo==='completo' ? '🍱 Completo' : '🍛 Segundo';
     return `<tr>
       <td style="color:var(--muted)">${i+1}</td>
-      <td style="font-weight:500">${nombreRegistro(r)}</td>
+      <td style="font-weight:500">${r.empleado}</td>
       <td>${t}</td>
       <td>${fechaDisplay(r.fecha)}</td>
       <td style="color:var(--muted)">${horaDisplay(r.hora)}</td>
@@ -482,7 +475,7 @@ async function exportCSV() {
   if (!data?.length) { alert('Sin datos.'); return; }
   const h = ['#','Empleado','Tipo usuario','Modalidad','Tipo','Sopa','Plato','Postre','Bebida','Recogedor','Fecha','Hora','Asistio','Flag'];
   const rows = data.map((r,i)=>[
-    i+1,nombreRegistro(r),r.tipo_user,r.modalidad,r.tipo,
+    i+1,r.empleado,r.tipo_user,r.modalidad,r.tipo,
     r.llevar_sopa??'',r.llevar_plato??'',r.llevar_postre??'',r.llevar_bebida??'',r.recogedor??'',
     r.fecha,horaDisplay(r.hora),r.asistio?'Sí':'No',r.asistio_flag?'Sí':'No'
   ]);
@@ -494,7 +487,7 @@ async function exportMes() {
   const { data } = await db.from('almuerzos').select('*').gte('fecha',`${y}-${m}-01`).lte('fecha',`${y}-${m}-31`).order('fecha').order('hora');
   if (!data?.length) { alert('Sin datos.'); return; }
   const h = ['#','Empleado','Modalidad','Tipo','Sopa','Plato','Postre','Bebida','Recogedor','Fecha','Hora','Asistio'];
-  const rows = data.map((r,i)=>[i+1,nombreRegistro(r),r.modalidad,r.tipo,r.llevar_sopa??'',r.llevar_plato??'',r.llevar_postre??'',r.llevar_bebida??'',r.recogedor??'',r.fecha,horaDisplay(r.hora),r.asistio?'Sí':'No']);
+  const rows = data.map((r,i)=>[i+1,r.empleado,r.modalidad,r.tipo,r.llevar_sopa??'',r.llevar_plato??'',r.llevar_postre??'',r.llevar_bebida??'',r.recogedor??'',r.fecha,horaDisplay(r.hora),r.asistio?'Sí':'No']);
   dlCSV([h,...rows],`ripconciv-${mes}.csv`);
 }
 function dlCSV(rows,name){

@@ -8,7 +8,6 @@
 <script src="js/config.js"></script>
 <link rel="stylesheet" href="js/shared.css">
 <style>
-body.dark{}
 .main{max-width:1000px;margin:0 auto;padding:28px 22px 48px;}
 
 /* Header banner */
@@ -282,6 +281,9 @@ if (!requireAuth('supervisor')) {}
 let freqData = [];
 let cdVal = CONFIG.refreshInterval / 1000;
 
+function nombreRegistro(r) {
+  return empleadoRegistro(r);
+}
 document.addEventListener('DOMContentLoaded', () => {
   const hoy = fechaHoy();
   const mes  = hoy.substring(0, 7);
@@ -360,6 +362,7 @@ async function cargarHoy() {
     return;
   }
   tbody.innerHTML = rows.map((r, i) => {
+    const empleado = nombreRegistro(r);
     const tipoPill = r.modalidad === 'ahi'
       ? `<span class="pill ${r.tipo === 'completo' ? 'pill-completo' : 'pill-segundo'}">${r.tipo === 'completo' ? '🍱 Completo' : '🍛 Segundo'}</span>`
       : `<span style="font-size:.76rem;color:var(--muted);">${r.llevar_plato || '—'}</span>`;
@@ -414,6 +417,7 @@ async function cargarAsistencia() {
     return;
   }
   tbody.innerHTML = rows.map((r, i) => {
+    const empleado = nombreRegistro(r);
     const tipoPill = r.modalidad === 'ahi'
       ? `<span class="pill ${r.tipo === 'completo' ? 'pill-completo' : 'pill-segundo'}">${r.tipo === 'completo' ? '🍱 Completo' : '🍛 Segundo'}</span>`
       : `<span class="pill pill-llevar">🥡 Llevar</span>`;
@@ -440,7 +444,7 @@ async function cargarFrecuencia() {
   document.getElementById('freq-grid-wrap').innerHTML =
     `<div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div>`;
 
-  const { data } = await db.from('almuerzos').select('empleado,tipo,modalidad,asistio')
+  const { data } = await db.from('almuerzos').select('fecha,empleado,tipo,modalidad,asistio,tipo_user')
     .gte('fecha', `${y}-${m}-01`).lte('fecha', `${y}-${m}-31`);
   const rows = data || [];
 
@@ -448,12 +452,13 @@ async function cargarFrecuencia() {
   const counts = {};
   EMPLEADOS.forEach(e => counts[e] = { total: 0, completo: 0, segundo: 0, llevar: 0, conf: 0 });
   rows.forEach(r => {
-    if (!counts[r.empleado]) counts[r.empleado] = { total: 0, completo: 0, segundo: 0, llevar: 0, conf: 0 };
-    counts[r.empleado].total++;
-    if (r.tipo === 'completo')      counts[r.empleado].completo++;
-    if (r.tipo === 'segundo')       counts[r.empleado].segundo++;
-    if (r.modalidad === 'llevar')   counts[r.empleado].llevar++;
-    if (r.asistio)                  counts[r.empleado].conf++;
+    const empleado = nombreRegistro(r);
+    if (!counts[empleado]) counts[empleado] = { total: 0, completo: 0, segundo: 0, llevar: 0, conf: 0 };
+    counts[empleado].total++;
+    if (r.tipo === 'completo')      counts[empleado].completo++;
+    if (r.tipo === 'segundo')       counts[empleado].segundo++;
+    if (r.modalidad === 'llevar')   counts[empleado].llevar++;
+    if (r.asistio)                  counts[empleado].conf++;
   });
 
   freqData = Object.entries(counts).sort((a, b) => b[1].total - a[1].total);
@@ -573,7 +578,7 @@ async function exportHoy() {
   if (!data?.length) { alert('Sin datos.'); return; }
   const h = ['#','Empleado','Tipo usuario','Modalidad','Tipo','Sopa','Plato','Postre','Bebida','Recogedor','Hora','Asistio','Hora confirmación'];
   const rows = data.map((r, i) => [
-    i+1, r.empleado, r.tipo_user, r.modalidad, r.tipo||'',
+    i+1, nombreRegistro(r), r.tipo_user, r.modalidad, r.tipo||'',
     r.llevar_sopa ?? '', r.llevar_plato || '', r.llevar_postre ?? '', r.llevar_bebida || '', r.recogedor || '',
     horaDisplay(r.hora),
     r.asistio ? 'Sí' : 'No',
@@ -588,7 +593,7 @@ async function exportAsist() {
   if (!data?.length) { alert('Sin datos.'); return; }
   const h = ['#','Empleado','Modalidad','Tipo','Registro','Confirmado','Hora confirmación','Flag'];
   const rows = data.map((r, i) => [
-    i+1, r.empleado, r.modalidad, r.tipo||'',
+    i+1, nombreRegistro(r), r.modalidad, r.tipo||'',
     horaDisplay(r.hora),
     r.asistio ? 'Sí' : 'No',
     r.asistio_marcado ? horaDisplay(r.asistio_marcado) : '',
@@ -613,7 +618,7 @@ async function exportMes() {
     .gte('fecha', `${y}-${m}-01`).lte('fecha', `${y}-${m}-31`).order('fecha').order('hora');
   if (!data?.length) { alert('Sin datos.'); return; }
   const h = ['#','Empleado','Modalidad','Tipo','Fecha','Hora','Asistio'];
-  const rows = data.map((r, i) => [i+1, r.empleado, r.modalidad, r.tipo||'', r.fecha, horaDisplay(r.hora), r.asistio?'Sí':'No']);
+  const rows = data.map((r, i) => [i+1, nombreRegistro(r), r.modalidad, r.tipo||'', r.fecha, horaDisplay(r.hora), r.asistio?'Sí':'No']);
   dlCSV([h, ...rows], `supervisor-historial-${mes}.csv`);
 }
 

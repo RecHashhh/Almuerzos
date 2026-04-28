@@ -456,8 +456,9 @@ function onMsalSuccess(resp) {
     msalApp.logoutRedirect();
     return;
   }
-  const name = account.name || email.split('@')[0].replace(/\./g,' ').toUpperCase();
-  currentUser = { name, email, tipo: 'ms' };
+  const rawName = account.name || email.split('@')[0].replace(/\./g,' ').toUpperCase();
+  const name = empleadoCanonico(rawName);
+  currentUser = { name, email, tipo: 'ms', rawName };
   showFormView();
 }
 
@@ -548,10 +549,11 @@ async function registrar() {
   hideAlerts();
 
   const hoy = fechaHoy();
+  const empleado = empleadoRegistro(currentUser);
 
   // Duplicate check
   const { data: dup } = await db.from('almuerzos')
-    .select('id').eq('empleado', currentUser.name).eq('fecha', hoy).limit(1);
+    .select('id').eq('empleado', empleado).eq('fecha', hoy).limit(1);
   if (dup && dup.length > 0) {
     showAlert('alert-dup');
     btn.disabled = false; btn.innerHTML = 'Confirmar Registro'; return;
@@ -559,7 +561,7 @@ async function registrar() {
 
   // Build record
   const record = {
-    empleado:   currentUser.name,
+    empleado:   empleado,
     email:      currentUser.email,
     tipo_user:  currentUser.tipo,      // ms | guest
     fecha:      hoy,

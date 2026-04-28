@@ -73,7 +73,28 @@ const EMPLEADOS = [
   "JOSGREHER VIERA"
 ];
 
+const EMPLEADO_CANONICO = Object.fromEntries(
+  EMPLEADOS.map(nombre => [normalizarEmpleado(nombre), nombre])
+);
+
 // ── Utilidades ──
+function normalizarEmpleado(valor) {
+  return String(valor || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^\w\s]/g, ' ')
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+function empleadoCanonico(valor) {
+  const limpio = normalizarEmpleado(valor);
+  return EMPLEADO_CANONICO[limpio] || limpio;
+}
+function empleadoRegistro(registro) {
+  if (registro && registro.tipo_user === 'guest') return registro.empleado || '';
+  return empleadoCanonico(registro && registro.empleado);
+}
 function fechaHoy() {
   const ec = new Date(new Date().toLocaleString('en-US',{timeZone:CONFIG.timezone}));
   return `${ec.getFullYear()}-${String(ec.getMonth()+1).padStart(2,'0')}-${String(ec.getDate()).padStart(2,'0')}`;

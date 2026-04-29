@@ -486,6 +486,8 @@ async function cargarFrecuencia() {
   const mes = document.getElementById('f-freq-mes').value;
   if (!mes) return;
   const [y, m] = mes.split('-');
+  const lastDay = new Date(parseInt(y), parseInt(m), 0).getDate();
+  const lastDayStr = String(lastDay).padStart(2, '0');
 
   document.getElementById('freq-grid-wrap').innerHTML =
     `<div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div>`;
@@ -494,7 +496,7 @@ async function cargarFrecuencia() {
     .from('almuerzos')
     .select('*')
     .gte('fecha', `${y}-${m}-01`)
-    .lte('fecha', `${y}-${m}-31`);
+    .lte('fecha', `${y}-${m}-${lastDayStr}`);
   
   if (error) {
     console.error('Error cargando frecuencia:', error);
@@ -653,8 +655,10 @@ async function cargarHistorial() {
   document.getElementById('hist-wrap').innerHTML =
     `<div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div>`;
 
+  const lastDay = new Date(parseInt(y), parseInt(m), 0).getDate();
+  const lastDayStr = String(lastDay).padStart(2, '0');
   const { data, error } = await db.from('almuerzos').select('*')
-    .gte('fecha', `${y}-${m}-01`).lte('fecha', `${y}-${m}-31`).order('fecha');
+    .gte('fecha', `${y}-${m}-01`).lte('fecha', `${y}-${m}-${lastDayStr}`).order('fecha');
   
   if (error) {
     console.error('Error cargando historial:', error);
@@ -766,8 +770,10 @@ async function exportMes() {
   const mes = document.getElementById('f-hist-mes').value;
   if (!mes) return;
   const [y, m] = mes.split('-');
+  const lastDay = new Date(parseInt(y), parseInt(m), 0).getDate();
+  const lastDayStr = String(lastDay).padStart(2, '0');
   const { data, error } = await db.from('almuerzos').select('*')
-    .gte('fecha', `${y}-${m}-01`).lte('fecha', `${y}-${m}-31`).order('fecha').order('hora');
+    .gte('fecha', `${y}-${m}-01`).lte('fecha', `${y}-${m}-${lastDayStr}`).order('fecha').order('hora');
   if (error) { alert('❌ Error al exportar: ' + error.message); return; }
   if (!data?.length) { alert('Sin datos.'); return; }
   const h = ['#','Empleado','Modalidad','Tipo','Fecha','Hora','Asistio'];

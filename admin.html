@@ -409,9 +409,11 @@ async function cargarLlevar() {
 async function cargarHistorial() {
   const mes = document.getElementById('f-mes').value; if(!mes) return;
   const [y,m] = mes.split('-');
+  const lastDay = new Date(parseInt(y), parseInt(m), 0).getDate();
+  const lastDayStr = String(lastDay).padStart(2, '0');
   document.getElementById('historial-wrap').innerHTML=`<div class="loading"><span class="spinner spinner-dark"></span></div>`;
   const { data, error } = await db.from('almuerzos').select('fecha,tipo,modalidad,asistio')
-    .gte('fecha',`${y}-${m}-01`).lte('fecha',`${y}-${m}-31`).order('fecha');
+    .gte('fecha',`${y}-${m}-01`).lte('fecha',`${y}-${m}-${lastDayStr}`).order('fecha');
   
   if (error) {
     console.error('Error cargando historial:', error);
@@ -534,7 +536,9 @@ async function exportCSV() {
 async function exportMes() {
   const mes = document.getElementById('f-mes').value; if(!mes) return;
   const [y,m] = mes.split('-');
-  const { data, error } = await db.from('almuerzos').select('*').gte('fecha',`${y}-${m}-01`).lte('fecha',`${y}-${m}-31`).order('fecha').order('hora');
+  const lastDay = new Date(parseInt(y), parseInt(m), 0).getDate();
+  const lastDayStr = String(lastDay).padStart(2, '0');
+  const { data, error } = await db.from('almuerzos').select('*').gte('fecha',`${y}-${m}-01`).lte('fecha',`${y}-${m}-${lastDayStr}`).order('fecha').order('hora');
   if (error) { alert('❌ Error al exportar: ' + error.message); return; }
   if (!data?.length) { alert('Sin datos.'); return; }
   const h = ['#','Empleado','Modalidad','Tipo','Sopa','Plato','Postre','Bebida','Recogedor','Fecha','Hora','Asistio'];

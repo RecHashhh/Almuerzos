@@ -256,16 +256,23 @@ function st(tab, el) {
 async function cargarStats() {
   const hoy = fechaHoy();
   const mes = hoy.substring(0,7);
-  const [{ data: d, error: e1 }, { count: cMes, error: e2 }] = await Promise.all([
+  const [y, m] = mes.split('-');
+  const lastDay = new Date(parseInt(y), parseInt(m), 0).getDate();
+  const lastDayStr = String(lastDay).padStart(2, '0');
+  
+  const [r1, r2] = await Promise.all([
     db.from('almuerzos').select('*').eq('fecha', hoy),
-    db.from('almuerzos').select('*',{count:'exact',head:true}).gte('fecha',mes+'-01').lte('fecha',mes+'-31')
+    db.from('almuerzos').select('*',{count:'exact',head:true}).gte('fecha',`${y}-${m}-01`).lte('fecha',`${y}-${m}-${lastDayStr}`)
   ]);
+  
+  const { data: d, error: e1 } = r1;
+  const { count: cMes, error: e2 } = r2;
   
   if (e1 || e2) {
     console.error('Error cargando stats:', e1 || e2);
     document.getElementById('stats-top').innerHTML = `
       <div style="grid-column:1/-1;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:14px;font-size:.84rem;color:#EF4444;">
-        <strong>⚠️ Error al cargar estadísticas:</strong> ${(e1 || e2).message}
+        <strong>⚠️ Error al cargar estadísticas:</strong> ${(e1?.message || e2?.message || 'Error desconocido')}
       </div>`;
     return;
   }

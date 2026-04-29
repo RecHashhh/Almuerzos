@@ -303,6 +303,8 @@ tr:hover td{background:rgba(255,255,255,.025);}
 
 </div><!-- /main -->
 
+
+
 <script>
 const { createClient } = supabase;
 const db = createClient(CONFIG.supabaseUrl, CONFIG.supabaseKey);
@@ -461,6 +463,11 @@ async function cargarAsistencia() {
 // ════════════════════════════
 // FRECUENCIA
 // ════════════════════════════
+// freqData = solo empleados MS (para el buscador)
+// guestBlock = objeto resumen de todos los invitados
+
+let guestBlock = null;
+
 async function cargarFrecuencia() {
   const mes = document.getElementById('f-freq-mes').value;
   if (!mes) return;
@@ -469,75 +476,144 @@ async function cargarFrecuencia() {
   document.getElementById('freq-grid-wrap').innerHTML =
     `<div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div>`;
 
-  const { data } = await db.from('almuerzos').select('empleado,tipo,modalidad,asistio,cargo_extra_monto,cargo_extra_pagado')
-    .gte('fecha', `${y}-${m}-01`).lte('fecha', `${y}-${m}-31`);
+  const { data } = await db
+    .from('almuerzos')
+    .select('empleado,tipo_user,fecha,tipo,modalidad,asistio,cargo_extra_monto,cargo_extra_pagado')
+    .gte('fecha', `${y}-${m}-01`)
+    .lte('fecha', `${y}-${m}-31`);
   const rows = data || [];
 
-  // Get unique employees from actual records
-  const uniqueEmpleados = [...new Set(rows.map(r => r.empleado))].sort();
+  // ── Separar empleados MS de invitados ──
+  const msRows    = rows.filter(r => r.tipo_user !== 'guest');
+  const guestRows = rows.filter(r => r.tipo_user === 'guest');
 
-  // Count per employee
+  // ── Conteo por empleado MS (agrupado por nombre de Azure) ──
   const counts = {};
-  uniqueEmpleados.forEach(e => counts[e] = { total: 0, completo: 0, segundo: 0, llevar: 0, conf: 0, extras: [], extrasPagados: [], extrasNoConfirmados: [] });
-  rows.forEach(r => {
-    if (!counts[r.empleado]) counts[r.empleado] = { total: 0, completo: 0, segundo: 0, llevar: 0, conf: 0, extras: [], extrasPagados: [], extrasNoConfirmados: [] };
+  msRows.forEach(r => {
+    if (!counts[r.empleado]) {
+      counts[r.empleado] = { total:0, completo:0, segundo:0, llevar:0, conf:0,
+        extras:[], extrasPagados:[], extrasNoConfirmados:[] };
+    }
     counts[r.empleado].total++;
-    if (r.tipo === 'completo')           counts[r.empleado].completo++;
-    if (r.tipo === 'segundo')            counts[r.empleado].segundo++;
-    if (r.modalidad === 'llevar')        counts[r.empleado].llevar++;
-    if (r.asistio)                       counts[r.empleado].conf++;
+    if (r.tipo === 'completo')     counts[r.empleado].completo++;
+    if (r.tipo === 'segundo')      counts[r.empleado].segundo++;
+    if (r.modalidad === 'llevar')  counts[r.empleado].llevar++;
+    if (r.asistio)                 counts[r.empleado].conf++;
     if (r.cargo_extra_monto) {
       const monto = parseFloat(r.cargo_extra_monto);
       counts[r.empleado].extras.push(monto);
-      if (r.cargo_extra_pagado)
-        counts[r.empleado].extrasPagados.push(monto);
-      else
-        counts[r.empleado].extrasNoConfirmados.push(monto);
+      if (r.cargo_extra_pagado) counts[r.empleado].extrasPagados.push(monto);
+      else                      counts[r.empleado].extrasNoConfirmados.push(monto);
     }
   });
 
   freqData = Object.entries(counts).sort((a, b) => b[1].total - a[1].total);
-  const maxVal = freqData[0]?.[1]?.total || 1;
+  window._freqMaxVal = freqData[0]?.[1]?.total || 1;
 
+  // ── Bloque único de invitados ──
+  if (guestRows.length > 0) {
+    const nombres = [...new Set(guestRows.map(r => r.empleado))].sort();
+    guestBlock = {
+      total:    guestRows.length,
+      completo: guestRows.filter(r => r.tipo === 'completo').length,
+      segundo:  guestRows.filter(r => r.tipo === 'segundo').length,
+      llevar:   guestRows.filter(r => r.modalidad === 'llevar').length,
+      conf:     guestRows.filter(r => r.asistio).length,
+      nombres,  // lista individual para mostrar en el bloque expandido
+    };
+  } else {
+    guestBlock = null;
+  }
+
+  // ── Stats summary ──
   const totalPedidos = rows.length;
   const diasActivos  = new Set(rows.map(r => r.fecha)).size;
-  const uniqueEmpleadosCount = uniqueEmpleados.length;
-
+  const msActivos    = Object.keys(counts).length;
   document.getElementById('summary-freq').innerHTML = `
     <div class="scard c-total"><div class="scard-num">${totalPedidos}</div><div class="scard-label">Pedidos en el mes</div></div>
     <div class="scard c-ahi"><div class="scard-num">${diasActivos}</div><div class="scard-label">Días con registros</div></div>
-    <div class="scard c-pend"><div class="scard-num">${uniqueEmpleadosCount}</div><div class="scard-label">Empleados activos</div></div>
-    <div class="scard c-conf"><div class="scard-num">${totalPedidos > 0 ? Math.round(totalPedidos / diasActivos) : 0}</div><div class="scard-label">Promedio diario</div></div>
+    <div class="scard c-pend"><div class="scard-num">${msActivos}</div><div class="scard-label">Empleados activos</div></div>
+    <div class="scard c-conf"><div class="scard-num">${totalPedidos > 0 && diasActivos > 0 ? Math.round(totalPedidos/diasActivos) : 0}</div><div class="scard-label">Promedio diario</div></div>
+    ${guestRows.length ? `<div class="scard c-llevar"><div class="scard-num">${guestRows.length}</div><div class="scard-label">Pedidos invitados</div></div>` : ''}
   `;
 
-  renderFreq(freqData, maxVal);
-  window._freqMaxVal = maxVal;
+  renderFreq(freqData, window._freqMaxVal);
 }
 
 function renderFreq(data, maxVal) {
-  if (!data.length) {
-    document.getElementById('freq-grid-wrap').innerHTML =
-      `<div class="empty"><div class="empty-ico">📊</div>Sin datos</div>`;
+  const wrap = document.getElementById('freq-grid-wrap');
+
+  // ── Nota informativa ──
+  const infoNote = `<div style="font-size:.76rem;color:var(--muted);margin-bottom:12px;
+    background:var(--surface);border:1px solid var(--border);border-radius:8px;padding:9px 14px;">
+    💡 Los nombres corresponden al perfil de <strong>Microsoft 365</strong> de cada empleado.
+  </div>`;
+
+  // ── Bloque invitados (siempre al final, sin buscador) ──
+  let guestHtml = '';
+  if (guestBlock) {
+    const nombres = guestBlock.nombres.map(n =>
+      `<span style="font-size:.75rem;background:var(--surface);border:1px solid var(--border);
+        border-radius:6px;padding:3px 8px;display:inline-block;margin:2px;">${n}</span>`
+    ).join('');
+    guestHtml = `
+      <div style="margin-top:20px;">
+        <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;
+          letter-spacing:.07em;margin-bottom:10px;">👥 Invitados externos</div>
+        <div class="freq-card" style="border-color:rgba(37,99,235,.3);background:rgba(37,99,235,.05);
+          flex-direction:column;align-items:flex-start;gap:10px;padding:16px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+            <div>
+              <div style="font-weight:700;font-size:.9rem;">INVITADOS</div>
+              <div style="font-size:.74rem;color:var(--muted);margin-top:2px;">${guestBlock.nombres.length} persona(s) distintas este mes</div>
+            </div>
+            <div style="text-align:right;">
+              <div style="font-family:'Syne',sans-serif;font-size:2rem;font-weight:800;color:#3B82F6;line-height:1;">${guestBlock.total}</div>
+              <div style="font-size:.68rem;color:var(--muted);">pedidos</div>
+            </div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;">
+            <span class="pill pill-completo">🍱 ${guestBlock.completo}</span>
+            <span class="pill pill-segundo">🍛 ${guestBlock.segundo}</span>
+            ${guestBlock.llevar ? `<span class="pill pill-llevar">🥡 ${guestBlock.llevar}</span>` : ''}
+            <span class="pill pill-confirmed">✅ ${guestBlock.conf}</span>
+          </div>
+          <div style="width:100%;">
+            <div style="font-size:.7rem;color:var(--muted);margin-bottom:6px;font-weight:600;">Nombres registrados:</div>
+            <div style="display:flex;flex-wrap:wrap;gap:4px;">${nombres}</div>
+          </div>
+        </div>
+      </div>`;
+  }
+
+  if (!data.length && !guestBlock) {
+    wrap.innerHTML = `<div class="empty"><div class="empty-ico">📊</div>Sin datos este mes</div>`;
     return;
   }
-  document.getElementById('freq-grid-wrap').innerHTML = `
+
+  wrap.innerHTML = infoNote + `
+    <div style="font-size:.72rem;font-weight:700;color:var(--muted);text-transform:uppercase;
+      letter-spacing:.07em;margin-bottom:10px;">🏢 Empleados Microsoft 365</div>
     <div class="freq-grid">
-      ${data.map(([nombre, c]) => {
+      ${data.length ? data.map(([nombre, c]) => {
         const pct = maxVal > 0 ? Math.round(c.total / maxVal * 100) : 0;
-        const isZero = c.total === 0;
         return `
-          <div class="freq-card" style="${isZero ? 'opacity:.45' : 'cursor:pointer'}" onclick="showDetailModal('${nombre}', ${JSON.stringify(c).replace(/"/g, '&quot;')})">
+          <div class="freq-card">
             <div class="freq-name">${nombre}</div>
-            <div class="freq-bar-wrap">
-              <div class="freq-bar" style="width:${pct}%"></div>
+            <div style="display:flex;align-items:center;gap:8px;flex:1;">
+              <div class="freq-bar-wrap" style="flex:1;">
+                <div class="freq-bar" style="width:${pct}%"></div>
+              </div>
+              <div class="freq-count">${c.total}</div>
             </div>
-            <div class="freq-count">${c.total}</div>
           </div>`;
-      }).join('')}
-    </div>`;
+      }).join('') : `<div style="color:var(--muted);font-size:.84rem;padding:12px;">Sin pedidos de empleados este mes.</div>`}
+    </div>
+    ${guestHtml}`;
 }
 
 function filtrarFreq(q) {
+  // El buscador solo filtra empleados MS; el bloque de invitados siempre se muestra
   const filtered = freqData.filter(([n]) => n.toLowerCase().includes(q.toLowerCase()));
   renderFreq(filtered, window._freqMaxVal || 1);
 }
@@ -638,10 +714,14 @@ async function exportAsist() {
 
 async function exportFreq() {
   const mes = document.getElementById('f-freq-mes').value;
-  if (!mes || !freqData.length) { alert('Sin datos.'); return; }
-  const h = ['#','Empleado','Total pedidos','Completos','Segundos','Para llevar','Confirmados'];
-  const rows = freqData.map(([n, c], i) => [i+1, n, c.total, c.completo, c.segundo, c.llevar, c.conf]);
-  dlCSV([h, ...rows], `supervisor-frecuencia-${mes}.csv`);
+  if (!mes || (!freqData.length && !guestBlock)) { alert('Sin datos.'); return; }
+  const h = ['#','Tipo','Empleado / Grupo','Total pedidos','Completos','Segundos','Para llevar','Confirmados'];
+  const msRows = freqData.map(([n, c], i) => [i+1, 'Empleado MS', n, c.total, c.completo, c.segundo, c.llevar, c.conf]);
+  const guestRows = guestBlock
+    ? [[msRows.length + 1, 'Invitados', `INVITADOS (${guestBlock.nombres.join(' | ')})`,
+        guestBlock.total, guestBlock.completo, guestBlock.segundo, guestBlock.llevar, guestBlock.conf]]
+    : [];
+  dlCSV([h, ...msRows, ...guestRows], `supervisor-frecuencia-${mes}.csv`);
 }
 
 async function exportMes() {

@@ -535,6 +535,7 @@ async function cargarFrecuencia() {
   });
 
   freqData = Object.entries(counts).sort((a, b) => b[1].total - a[1].total);
+  freqMap = counts;
   window._freqMaxVal = freqData[0]?.[1]?.total || 1;
 
   // ── Bloque único de invitados ──
@@ -625,7 +626,7 @@ function renderFreq(data, maxVal) {
       ${data.length ? data.map(([nombre, c]) => {
         const pct = maxVal > 0 ? Math.round(c.total / maxVal * 100) : 0;
         return `
-          <div class="freq-card">
+          <div class="freq-card" onclick="showDetailModal('${nombre.replace(/'/g,"\\'")}', freqMap['${nombre.replace(/'/g,"\\'")}'])">
             <div class="freq-name">${nombre}</div>
             <div style="display:flex;align-items:center;gap:8px;flex:1;">
               <div class="freq-bar-wrap" style="flex:1;">

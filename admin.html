@@ -256,10 +256,20 @@ function st(tab, el) {
 async function cargarStats() {
   const hoy = fechaHoy();
   const mes = hoy.substring(0,7);
-  const [{ data: d }, { count: cMes }] = await Promise.all([
+  const [{ data: d, error: e1 }, { count: cMes, error: e2 }] = await Promise.all([
     db.from('almuerzos').select('*').eq('fecha', hoy),
     db.from('almuerzos').select('*',{count:'exact',head:true}).gte('fecha',mes+'-01').lte('fecha',mes+'-31')
   ]);
+  
+  if (e1 || e2) {
+    console.error('Error cargando stats:', e1 || e2);
+    document.getElementById('stats-top').innerHTML = `
+      <div style="grid-column:1/-1;background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:14px;font-size:.84rem;color:#EF4444;">
+        <strong>⚠️ Error al cargar estadísticas:</strong> ${(e1 || e2).message}
+      </div>`;
+    return;
+  }
+  
   const rows = d||[];
   const conf   = rows.filter(r=>r.asistio).length;
   const flags  = rows.filter(r=>r.asistio_flag).length;
@@ -278,7 +288,14 @@ async function cargarHoy() {
   const fecha = document.getElementById('f-fecha').value || fechaHoy();
   const tbody = document.getElementById('hoy-tbody');
   tbody.innerHTML = `<tr><td colspan="5"><div class="loading"><span class="spinner spinner-dark"></span></div></td></tr>`;
-  const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  const { data, error } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  
+  if (error) {
+    console.error('Error cargando registros de hoy:', error);
+    tbody.innerHTML = `<tr><td colspan="5"><div class="empty"><div class="empty-ico">⚠️</div><strong>Error al cargar:</strong> ${error.message}</div></td></tr>`;
+    return;
+  }
+  
   const rows = data||[];
   document.getElementById('hoy-badge').textContent = rows.length+' registros';
   if (!rows.length) { tbody.innerHTML=`<tr><td colspan="5"><div class="empty"><div class="empty-ico">📋</div>Sin registros</div></td></tr>`; return; }
@@ -305,7 +322,14 @@ async function cargarAsistencia() {
   const fecha = document.getElementById('f-asist').value || fechaHoy();
   const tbody = document.getElementById('asist-tbody');
   tbody.innerHTML = `<tr><td colspan="6"><div class="loading"><span class="spinner spinner-dark"></span></div></td></tr>`;
-  const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  const { data, error } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  
+  if (error) {
+    console.error('Error cargando asistencia:', error);
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-ico">⚠️</div><strong>Error al cargar:</strong> ${error.message}</div></td></tr>`;
+    return;
+  }
+  
   const rows = data||[];
   document.getElementById('asist-badge').textContent = rows.length;
   const flags = rows.filter(r=>r.asistio_flag);
@@ -353,7 +377,14 @@ async function clearFlag(id) {
 async function cargarLlevar() {
   const fecha = document.getElementById('f-llevar').value || fechaHoy();
   const tbody = document.getElementById('llevar-tbody');
-  const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).eq('modalidad','llevar').order('hora');
+  const { data, error } = await db.from('almuerzos').select('*').eq('fecha', fecha).eq('modalidad','llevar').order('hora');
+  
+  if (error) {
+    console.error('Error cargando pedidos para llevar:', error);
+    tbody.innerHTML = `<tr><td colspan="8"><div class="empty"><div class="empty-ico">⚠️</div><strong>Error al cargar:</strong> ${error.message}</div></td></tr>`;
+    return;
+  }
+  
   const rows = data||[];
   document.getElementById('llevar-badge').textContent = rows.length+' pedidos';
   if (!rows.length) { tbody.innerHTML=`<tr><td colspan="8"><div class="empty"><div class="empty-ico">🥡</div>Sin pedidos para llevar</div></td></tr>`; return; }
@@ -379,8 +410,19 @@ async function cargarHistorial() {
   const mes = document.getElementById('f-mes').value; if(!mes) return;
   const [y,m] = mes.split('-');
   document.getElementById('historial-wrap').innerHTML=`<div class="loading"><span class="spinner spinner-dark"></span></div>`;
-  const { data } = await db.from('almuerzos').select('fecha,tipo,modalidad,asistio')
+  const { data, error } = await db.from('almuerzos').select('fecha,tipo,modalidad,asistio')
     .gte('fecha',`${y}-${m}-01`).lte('fecha',`${y}-${m}-31`).order('fecha');
+  
+  if (error) {
+    console.error('Error cargando historial:', error);
+    document.getElementById('historial-wrap').innerHTML = `
+      <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:16px;">
+        <div style="color:#EF4444;font-weight:600;margin-bottom:8px;">⚠️ Error al cargar datos</div>
+        <div style="color:var(--muted);font-size:.84rem;">${error.message || 'No se pudieron cargar los registros del mes.'}</div>
+      </div>`;
+    return;
+  }
+  
   const rows = data||[];
   if (!rows.length) { document.getElementById('historial-wrap').innerHTML=`<div class="empty"><div class="empty-ico">📅</div>Sin registros</div>`; return; }
   const byDate={};
@@ -422,7 +464,14 @@ function irAFecha(f) {
 
 // ── INVITADOS ──
 async function cargarInvitados() {
-  const { data } = await db.from('almuerzos').select('*').eq('tipo_user','guest').order('hora',{ascending:false});
+  const { data, error } = await db.from('almuerzos').select('*').eq('tipo_user','guest').order('hora',{ascending:false});
+  
+  if (error) {
+    console.error('Error cargando invitados:', error);
+    document.getElementById('inv-tbody').innerHTML = `<tr><td colspan="5"><div class="empty"><div class="empty-ico">⚠️</div><strong>Error al cargar:</strong> ${error.message}</div></td></tr>`;
+    return;
+  }
+  
   const rows = data||[];
   document.getElementById('inv-badge').textContent = rows.length;
   const tbody = document.getElementById('inv-tbody');
@@ -471,7 +520,8 @@ function toggleQR() {
 // ── EXPORT ──
 async function exportCSV() {
   const fecha = document.getElementById('f-fecha').value || fechaHoy();
-  const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  const { data, error } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  if (error) { alert('❌ Error al exportar: ' + error.message); return; }
   if (!data?.length) { alert('Sin datos.'); return; }
   const h = ['#','Empleado','Tipo usuario','Modalidad','Tipo','Sopa','Plato','Postre','Bebida','Recogedor','Fecha','Hora','Asistio','Flag'];
   const rows = data.map((r,i)=>[
@@ -484,7 +534,8 @@ async function exportCSV() {
 async function exportMes() {
   const mes = document.getElementById('f-mes').value; if(!mes) return;
   const [y,m] = mes.split('-');
-  const { data } = await db.from('almuerzos').select('*').gte('fecha',`${y}-${m}-01`).lte('fecha',`${y}-${m}-31`).order('fecha').order('hora');
+  const { data, error } = await db.from('almuerzos').select('*').gte('fecha',`${y}-${m}-01`).lte('fecha',`${y}-${m}-31`).order('fecha').order('hora');
+  if (error) { alert('❌ Error al exportar: ' + error.message); return; }
   if (!data?.length) { alert('Sin datos.'); return; }
   const h = ['#','Empleado','Modalidad','Tipo','Sopa','Plato','Postre','Bebida','Recogedor','Fecha','Hora','Asistio'];
   const rows = data.map((r,i)=>[i+1,r.empleado,r.modalidad,r.tipo,r.llevar_sopa??'',r.llevar_plato??'',r.llevar_postre??'',r.llevar_bebida??'',r.recogedor??'',r.fecha,horaDisplay(r.hora),r.asistio?'Sí':'No']);

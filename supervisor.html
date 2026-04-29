@@ -354,7 +354,14 @@ function st(tab, el) {
 // ════════════════════════════
 async function cargarHoy() {
   const fecha = document.getElementById('f-hoy').value || fechaHoy();
-  const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  const { data, error } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  
+  if (error) {
+    console.error('Error cargando registros de hoy:', error);
+    document.getElementById('hoy-tbody').innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-ico">⚠️</div>Error al cargar datos: ${error.message}</div></td></tr>`;
+    return;
+  }
+  
   const rows = data || [];
 
   const ahi    = rows.filter(r => r.modalidad === 'ahi');
@@ -421,7 +428,14 @@ function asistBadge(r) {
 // ════════════════════════════
 async function cargarAsistencia() {
   const fecha = document.getElementById('f-asist').value || fechaHoy();
-  const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  const { data, error } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  
+  if (error) {
+    console.error('Error cargando asistencia:', error);
+    document.getElementById('asist-tbody').innerHTML = `<tr><td colspan="6"><div class="empty"><div class="empty-ico">⚠️</div>Error al cargar datos: ${error.message}</div></td></tr>`;
+    return;
+  }
+  
   const rows = data || [];
 
   const conf  = rows.filter(r => r.asistio && !r.asistio_flag);
@@ -476,11 +490,22 @@ async function cargarFrecuencia() {
   document.getElementById('freq-grid-wrap').innerHTML =
     `<div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div>`;
 
-  const { data } = await db
+  const { data, error } = await db
     .from('almuerzos')
-    .select('empleado,tipo_user,fecha,tipo,modalidad,asistio,cargo_extra_monto,cargo_extra_pagado')
+    .select('*')
     .gte('fecha', `${y}-${m}-01`)
     .lte('fecha', `${y}-${m}-31`);
+  
+  if (error) {
+    console.error('Error cargando frecuencia:', error);
+    document.getElementById('freq-grid-wrap').innerHTML = `
+      <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:16px;">
+        <div style="color:#EF4444;font-weight:600;margin-bottom:8px;">⚠️ Error al cargar datos</div>
+        <div style="color:var(--muted);font-size:.84rem;">${error.message || 'No se pudieron cargar los registros. Por favor, intenta nuevamente.'}</div>
+      </div>`;
+    return;
+  }
+  
   const rows = data || [];
 
   // ── Separar empleados MS de invitados ──
@@ -628,8 +653,19 @@ async function cargarHistorial() {
   document.getElementById('hist-wrap').innerHTML =
     `<div class="loading"><span class="spinner spinner-dark"></span> Cargando...</div>`;
 
-  const { data } = await db.from('almuerzos').select('*')
+  const { data, error } = await db.from('almuerzos').select('*')
     .gte('fecha', `${y}-${m}-01`).lte('fecha', `${y}-${m}-31`).order('fecha');
+  
+  if (error) {
+    console.error('Error cargando historial:', error);
+    document.getElementById('hist-wrap').innerHTML = `
+      <div style="background:rgba(239,68,68,.1);border:1px solid rgba(239,68,68,.3);border-radius:10px;padding:16px;">
+        <div style="color:#EF4444;font-weight:600;margin-bottom:8px;">⚠️ Error al cargar datos</div>
+        <div style="color:var(--muted);font-size:.84rem;">${error.message || 'No se pudieron cargar los registros.'}</div>
+      </div>`;
+    return;
+  }
+  
   const rows = data || [];
 
   if (!rows.length) {
@@ -684,7 +720,8 @@ async function cargarHistorial() {
 // ════════════════════════════
 async function exportHoy() {
   const fecha = document.getElementById('f-hoy').value || fechaHoy();
-  const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  const { data, error } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  if (error) { alert('❌ Error al exportar: ' + error.message); return; }
   if (!data?.length) { alert('Sin datos.'); return; }
   const h = ['#','Empleado','Tipo usuario','Modalidad','Tipo','Sopa','Plato','Postre','Bebida','Recogedor','Hora','Asistio','Hora confirmación'];
   const rows = data.map((r, i) => [
@@ -699,7 +736,8 @@ async function exportHoy() {
 
 async function exportAsist() {
   const fecha = document.getElementById('f-asist').value || fechaHoy();
-  const { data } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  const { data, error } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
+  if (error) { alert('❌ Error al exportar: ' + error.message); return; }
   if (!data?.length) { alert('Sin datos.'); return; }
   const h = ['#','Empleado','Modalidad','Tipo','Registro','Confirmado','Hora confirmación','Flag'];
   const rows = data.map((r, i) => [
@@ -728,8 +766,9 @@ async function exportMes() {
   const mes = document.getElementById('f-hist-mes').value;
   if (!mes) return;
   const [y, m] = mes.split('-');
-  const { data } = await db.from('almuerzos').select('*')
+  const { data, error } = await db.from('almuerzos').select('*')
     .gte('fecha', `${y}-${m}-01`).lte('fecha', `${y}-${m}-31`).order('fecha').order('hora');
+  if (error) { alert('❌ Error al exportar: ' + error.message); return; }
   if (!data?.length) { alert('Sin datos.'); return; }
   const h = ['#','Empleado','Modalidad','Tipo','Fecha','Hora','Asistio'];
   const rows = data.map((r, i) => [i+1, r.empleado, r.modalidad, r.tipo||'', r.fecha, horaDisplay(r.hora), r.asistio?'Sí':'No']);

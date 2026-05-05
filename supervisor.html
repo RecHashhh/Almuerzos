@@ -6,6 +6,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=Plus+Jakarta+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <link rel="stylesheet" href="js/shared.css">
 <style>
 .main{max-width:1000px;margin:0 auto;padding:28px 22px 48px;}
@@ -129,7 +131,9 @@ tr:hover td{background:rgba(255,255,255,.025);}
 .modal-close{position:absolute;top:16px;right:16px;background:none;border:none;
   font-size:1.5rem;cursor:pointer;color:var(--muted);transition:color .2s;}
 .modal-close:hover{color:var(--text);}
-.modal-title{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;margin-bottom:20px;padding-right:28px;}
+.modal-title{font-family:'Syne',sans-serif;font-size:1.3rem;font-weight:800;margin-bottom:8px;padding-right:28px;}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-bottom:16px;}
+.modal-actions .btn{padding:.82rem 14px;}
 .modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
 .modal-col{display:flex;flex-direction:column;gap:10px;}
 .receipt-box{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;}
@@ -140,6 +144,12 @@ tr:hover td{background:rgba(255,255,255,.025);}
 .receipt-qty{font-size:.84rem;color:var(--muted);text-align:right;}
 .receipt-value{font-size:.95rem;font-weight:700;text-align:right;}
 .receipt-total{margin-top:14px;font-weight:700;border-top:1px solid var(--border);padding-top:12px;display:flex;justify-content:space-between;font-size:.98rem;}
+.report-detail-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;}
+.report-detail-title{font-size:.88rem;font-weight:700;margin-bottom:12px;color:var(--text);}
+.report-detail-row{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;padding:.72rem 0;border-bottom:1px solid var(--border);font-size:.83rem;color:var(--muted);}
+.report-detail-row:last-child{border-bottom:none;}
+.report-detail-key{font-weight:600;color:var(--text);}
+.report-detail-val{text-align:right;}
 .modal-row{display:flex;justify-content:space-between;align-items:center;
   padding:14px 0;border-bottom:1px solid var(--border);}
 .modal-row:last-child{border-bottom:none;}
@@ -309,6 +319,9 @@ tr:hover td{background:rgba(255,255,255,.025);}
     <div class="modal-card">
       <button class="modal-close" onclick="closeDetailModal()">✕</button>
       <div class="modal-title" id="modal-empleado">—</div>
+      <div class="modal-actions">
+        <button class="btn btn-secondary" onclick="downloadDetailPDF()">📄 Descargar PDF</button>
+      </div>
       <div id="modal-content"></div>
     </div>
   </div>
@@ -531,7 +544,7 @@ async function cargarFrecuencia() {
   msRows.forEach(r => {
     if (!counts[r.empleado]) {
       counts[r.empleado] = { total:0, completo:0, segundo:0, llevar:0, conf:0,
-        extras:[], extrasPagados:[], extrasNoConfirmados:[] };
+        extras:[], extrasPagados:[], extrasNoConfirmados:[], records: [] };
     }
     counts[r.empleado].total++;
     if (r.tipo === 'completo')     counts[r.empleado].completo++;
@@ -544,6 +557,14 @@ async function cargarFrecuencia() {
       if (r.cargo_extra_pagado) counts[r.empleado].extrasPagados.push(monto);
       else                      counts[r.empleado].extrasNoConfirmados.push(monto);
     }
+    counts[r.empleado].records.push({
+      fecha: r.fecha,
+      tipo: r.tipo || '—',
+      modalidad: r.modalidad || '—',
+      asistio: r.asistio ? 'Sí' : 'No',
+      extra: r.cargo_extra_monto ? parseFloat(r.cargo_extra_monto) : 0,
+      pagado: r.cargo_extra_pagado ? 'Sí' : 'No'
+    });
   });
 
   freqData = Object.entries(counts).sort((a, b) => b[1].total - a[1].total);
@@ -818,6 +839,14 @@ function showDetailModal(empleado, counts) {
   const secondTotal = counts.segundo * secondPrice;
   const invoiceTotal = completeTotal + secondTotal + totalExtra;
   
+  const daysActive = [...new Set(counts.records.map(r => r.fecha))].length;
+  const detailRows = counts.records.slice(0, 10).map(r => `
+      <div class="report-detail-row">
+        <span class="report-detail-key">${fechaDisplay(r.fecha)}</span>
+        <span class="report-detail-val">${r.modalidad === 'llevar' ? 'Llevar' : r.tipo === 'completo' ? 'Completo' : 'Solo segundo'}</span>
+        <span class="report-detail-val">$${r.extra.toFixed(2)}</span>
+      </div>`).join('');
+  const moreRecords = counts.records.length > 10 ? `<div style="font-size:.82rem;color:var(--muted);margin-top:10px;">…y ${counts.records.length - 10} registros más</div>` : '';
   const contentHTML = `
     <div class="modal-grid">
       <div class="modal-col">
@@ -840,6 +869,10 @@ function showDetailModal(empleado, counts) {
         <div class="modal-row">
           <span class="modal-key">✅ Confirmados</span>
           <span class="modal-val">${counts.conf}</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-key">🗓️ Días con pedido</span>
+          <span class="modal-val">${daysActive}</span>
         </div>
         <div style="border-top:2px solid var(--border);margin-top:12px;padding-top:12px;">
           <div class="modal-row">
@@ -875,6 +908,41 @@ function showDetailModal(empleado, counts) {
           </div>
           <div class="receipt-row">
             <span class="receipt-item">Extras registrados</span>
+            <span class="receipt-qty">${counts.extras.length} items</span>
+            <span class="receipt-value">$${totalExtra.toFixed(2)}</span>
+          </div>
+          <div class="receipt-total">
+            <span>Total acumulado</span>
+            <span>$${invoiceTotal.toFixed(2)}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="report-detail-card">
+      <div class="report-detail-title">Detalle por día</div>
+      <div class="report-detail-row report-detail-key" style="font-weight:700;color:var(--text);border-bottom:1px solid var(--border);padding-bottom:10px;">
+        <span>Fecha</span><span>Pedido</span><span>Monto extra</span>
+      </div>
+      ${detailRows || `<div style="font-size:.85rem;color:var(--muted);padding:.8rem 0;">No hay registros detallados.</div>`}
+      ${moreRecords}
+    </div>
+        </div>
+      </div>
+      <div class="modal-col">
+        <div class="receipt-box">
+          <div class="receipt-title">Factura rápida</div>
+          <div class="receipt-row">
+            <span class="receipt-item">Almuerzo Completo</span>
+            <span class="receipt-qty">${counts.completo} x $2.00</span>
+            <span class="receipt-value">$${completeTotal.toFixed(2)}</span>
+          </div>
+          <div class="receipt-row">
+            <span class="receipt-item">Solo Segundo</span>
+            <span class="receipt-qty">${counts.segundo} x $1.75</span>
+            <span class="receipt-value">$${secondTotal.toFixed(2)}</span>
+          </div>
+          <div class="receipt-row">
+            <span class="receipt-item">Extras registrados</span>
             <span class="receipt-qty">${counts.extras?.length || 0} items</span>
             <span class="receipt-value">$${totalExtra.toFixed(2)}</span>
           </div>
@@ -887,8 +955,25 @@ function showDetailModal(empleado, counts) {
     </div>
   `;
   
+  window.currentDetailEmployee = empleado;
   document.getElementById('modal-content').innerHTML = contentHTML;
   modal.classList.add('active');
+}
+
+async function downloadDetailPDF() {
+  const modal = document.querySelector('.modal-card');
+  if (!modal) return;
+  const filename = `reporte-${(window.currentDetailEmployee || 'empleado').replace(/\s+/g,'_').toLowerCase()}.pdf`;
+  const canvas = await html2canvas(modal, { scale: 2, backgroundColor: '#ffffff' });
+  const imgData = canvas.toDataURL('image/png');
+  const pdf = new window.jspdf.jsPDF('p', 'pt', 'a4');
+  const pageWidth = pdf.internal.pageSize.getWidth();
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  const imgWidth = pageWidth - 40;
+  const imgHeight = canvas.height * imgWidth / canvas.width;
+  let position = 20;
+  pdf.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
+  pdf.save(filename);
 }
 
 function closeDetailModal() {

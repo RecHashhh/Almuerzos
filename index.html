@@ -295,13 +295,9 @@ footer{margin-top:22px;font-size:.72rem;color:var(--muted);text-align:center;}
 
           <!-- Postre -->
           <div class="llevar-field">
-            <div class="llevar-check-row">
-              <span>🍮 Postre</span>
-              <label class="toggle">
-                <input type="checkbox" id="llevar-postre" checked onchange="onLlevarChange()">
-                <div class="toggle-track"></div>
-              </label>
-            </div>
+              <label>🍮 Postre</label>
+              <input type="text" class="form-input" id="llevar-postre"
+                placeholder="Ej: Gelatina, fruta..." oninput="onLlevarChange()">
           </div>
 
           <!-- Bebida -->
@@ -622,7 +618,7 @@ async function registrar() {
     // llevar fields
     llevar_sopa:   selectedModality==='llevar' ? document.getElementById('llevar-sopa').value.trim() : null,
     llevar_plato:  selectedModality==='llevar' ? document.getElementById('llevar-plato').value.trim() : null,
-    llevar_postre: selectedModality==='llevar' ? document.getElementById('llevar-postre').checked : null,
+    llevar_postre: selectedModality==='llevar' ? document.getElementById('llevar-postre').value.trim() : null,
     llevar_bebida: selectedModality==='llevar' ? document.getElementById('llevar-bebida').value.trim() : null,
     recogedor: selectedModality==='llevar' ? getRecogedor() : null,
     // attendance
@@ -675,7 +671,7 @@ function showSuccess(rec) {
     const rows = [
       ['Sopa',           rec.llevar_sopa],
       ['Plato principal', rec.llevar_plato],
-      ['Postre',         rec.llevar_postre ? '✅ Sí' : '❌ No'],
+      ['Postre',         rec.llevar_postre],
       ['Bebida',         rec.llevar_bebida],
       ...(rec.cargo_extra_monto ? [['Cargo extra', '$' + rec.cargo_extra_monto]] : []),
       ['Recoge',         rec.recogedor],
@@ -706,7 +702,7 @@ function resetForm() {
   document.getElementById('llevar-bebida').value = '';
   document.getElementById('llevar-extra').value  = '';
   document.getElementById('llevar-sopa').value   = '';
-  document.getElementById('llevar-postre').checked = true;
+  document.getElementById('llevar-postre').value = '';
   setRecogedor('yo');
   hideAlerts();
 }

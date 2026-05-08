@@ -623,7 +623,7 @@ async function registrar() {
       : (document.getElementById('llevar-extra').value.trim() || null),
     cargo_extra_pagado: false,  // Por defecto pendiente
     // llevar fields
-    llevar_sopa:   selectedModality==='llevar' ? document.getElementById('llevar-sopa').checked : null,
+    llevar_sopa:   selectedModality==='llevar' ? document.getElementById('llevar-sopa').value.trim() : null,
     llevar_plato:  selectedModality==='llevar' ? document.getElementById('llevar-plato').value.trim() : null,
     llevar_postre: selectedModality==='llevar' ? document.getElementById('llevar-postre').checked : null,
     llevar_bebida: selectedModality==='llevar' ? document.getElementById('llevar-bebida').value.trim() : null,

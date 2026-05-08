@@ -833,8 +833,8 @@ function showDetailModal(empleado, counts) {
   const promExtra = counts.extras && counts.extras.length > 0 ? totalExtra / counts.extras.length : 0;
   const totalPagado = counts.extrasPagados && counts.extrasPagados.length > 0 ? counts.extrasPagados.reduce((a,b)=>a+b,0) : 0;
   const totalPendiente = counts.extrasNoConfirmados && counts.extrasNoConfirmados.length > 0 ? counts.extrasNoConfirmados.reduce((a,b)=>a+b,0) : 0;
-  const completePrice = 2.00;
-  const secondPrice = 1.75;
+  const completePrice = 3.75;
+  const secondPrice = 3.50;
   const completeTotal = counts.completo * completePrice;
   const secondTotal = counts.segundo * secondPrice;
   const invoiceTotal = completeTotal + secondTotal + totalExtra;
@@ -898,12 +898,12 @@ function showDetailModal(empleado, counts) {
           <div class="receipt-title">Factura rápida</div>
           <div class="receipt-row">
             <span class="receipt-item">Almuerzo Completo</span>
-            <span class="receipt-qty">${counts.completo} x $2.00</span>
+            <span class="receipt-qty">${counts.completo} x $3.75</span>
             <span class="receipt-value">$${completeTotal.toFixed(2)}</span>
           </div>
           <div class="receipt-row">
             <span class="receipt-item">Solo Segundo</span>
-            <span class="receipt-qty">${counts.segundo} x $1.75</span>
+            <span class="receipt-qty">${counts.segundo} x $3.50</span>
             <span class="receipt-value">$${secondTotal.toFixed(2)}</span>
           </div>
           <div class="receipt-row">
@@ -933,12 +933,12 @@ function showDetailModal(empleado, counts) {
           <div class="receipt-title">Factura rápida</div>
           <div class="receipt-row">
             <span class="receipt-item">Almuerzo Completo</span>
-            <span class="receipt-qty">${counts.completo} x $2.00</span>
+            <span class="receipt-qty">${counts.completo} x $3.75</span>
             <span class="receipt-value">$${completeTotal.toFixed(2)}</span>
           </div>
           <div class="receipt-row">
             <span class="receipt-item">Solo Segundo</span>
-            <span class="receipt-qty">${counts.segundo} x $1.75</span>
+            <span class="receipt-qty">${counts.segundo} x $3.50</span>
             <span class="receipt-value">$${secondTotal.toFixed(2)}</span>
           </div>
           <div class="receipt-row">

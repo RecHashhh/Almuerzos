@@ -281,13 +281,10 @@ footer{margin-top:22px;font-size:.72rem;color:var(--muted);text-align:center;}
 
           <!-- Sopa -->
           <div class="llevar-field">
-            <div class="llevar-check-row">
               <span>🍲 Sopa</span>
-              <label class="toggle">
-                <input type="checkbox" id="llevar-sopa" checked onchange="onLlevarChange()">
-                <div class="toggle-track"></div>
+              <input type="text" class="form-input" id="llevar-sopa"
+                  placeholder="Ej: Sopa de verduras, crema de zapallo..." oninput="onLlevarChange()">
               </label>
-            </div>
           </div>
 
           <!-- Plato principal -->

@@ -569,9 +569,10 @@ function checkSubmitReady() {
   let ok = !!selectedModality;
   if (selectedModality === 'ahi')    ok = ok && !!selectedTipo;
   if (selectedModality === 'llevar') {
+    const sopa   = document.getElementById('llevar-sopa').value.trim();
     const plato  = document.getElementById('llevar-plato').value.trim();
     const bebida = document.getElementById('llevar-bebida').value.trim();
-    ok = ok && plato.length > 0 && bebida.length > 0;
+    ok = ok && sopa.length > 0 && plato.length > 0 && bebida.length > 0;
     if (recogedorTipo==='empleado') ok = ok && !!document.getElementById('recogedor-emp-sel').value;
     if (recogedorTipo==='externo')  ok = ok && document.getElementById('recogedor-ext-name').value.trim().length > 1;
   }

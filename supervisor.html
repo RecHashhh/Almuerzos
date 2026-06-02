@@ -634,11 +634,20 @@ async function cargarFrecuencia() {
       counts[r.empleado] = { total:0, completo:0, segundo:0, llevar:0, conf:0,
         extras:[], extrasPagados:[], extrasNoConfirmados:[], records: [] };
     }
+    // Determine effective type for records marked as 'llevar'
+    const tipoRaw = r.tipo || '';
+    let tipoEffective = tipoRaw;
+    if (r.modalidad === 'llevar') {
+      // If plato is provided, treat as completo. If only sopa provided, treat as segundo.
+      if (r.llevar_plato && String(r.llevar_plato).trim().length > 0) tipoEffective = 'completo';
+      else if (r.llevar_sopa && String(r.llevar_sopa).trim().length > 0) tipoEffective = 'segundo';
+      else if (tipoRaw === 'llevar') tipoEffective = 'segundo';
+    }
     counts[r.empleado].total++;
-    if (r.tipo === 'completo')     counts[r.empleado].completo++;
-    if (r.tipo === 'segundo')      counts[r.empleado].segundo++;
-    if (r.modalidad === 'llevar')  counts[r.empleado].llevar++;
-    if (r.asistio)                 counts[r.empleado].conf++;
+    if (tipoEffective === 'completo')     counts[r.empleado].completo++;
+    if (tipoEffective === 'segundo')      counts[r.empleado].segundo++;
+    if (r.modalidad === 'llevar')          counts[r.empleado].llevar++;
+    if (r.asistio)                         counts[r.empleado].conf++;
     if (r.cargo_extra_monto) {
       const monto = parseFloat(r.cargo_extra_monto);
       counts[r.empleado].extras.push(monto);
@@ -647,11 +656,16 @@ async function cargarFrecuencia() {
     }
     counts[r.empleado].records.push({
       fecha: r.fecha,
-      tipo: r.tipo || '—',
+      tipo: tipoEffective || '—',
       modalidad: r.modalidad || '—',
       asistio: r.asistio ? 'Sí' : 'No',
       extra: r.cargo_extra_monto ? parseFloat(r.cargo_extra_monto) : 0,
-      pagado: r.cargo_extra_pagado ? 'Sí' : 'No'
+      pagado: r.cargo_extra_pagado ? 'Sí' : 'No',
+      llevar_sopa: r.llevar_sopa || '',
+      llevar_plato: r.llevar_plato || '',
+      llevar_postre: r.llevar_postre || '',
+      llevar_bebida: r.llevar_bebida || '',
+      recogedor: r.recogedor || ''
     });
   });
 
@@ -662,13 +676,23 @@ async function cargarFrecuencia() {
   // ── Bloque único de invitados ──
   if (guestRows.length > 0) {
     const nombres = [...new Set(guestRows.map(r => r.empleado))].sort();
+    const computeTipo = (r) => {
+      const tipoRaw = r.tipo || '';
+      if (r.modalidad === 'llevar') {
+        if (r.llevar_plato && String(r.llevar_plato).trim().length > 0) return 'completo';
+        if (r.llevar_sopa && String(r.llevar_sopa).trim().length > 0) return 'segundo';
+        return tipoRaw === 'llevar' ? 'segundo' : tipoRaw;
+      }
+      return tipoRaw;
+    };
     guestBlock = {
       total:    guestRows.length,
-      completo: guestRows.filter(r => r.tipo === 'completo').length,
-      segundo:  guestRows.filter(r => r.tipo === 'segundo').length,
+      completo: guestRows.filter(r => computeTipo(r) === 'completo').length,
+      segundo:  guestRows.filter(r => computeTipo(r) === 'segundo').length,
       llevar:   guestRows.filter(r => r.modalidad === 'llevar').length,
       conf:     guestRows.filter(r => r.asistio).length,
       nombres,  // lista individual para mostrar en el bloque expandido
+      rows:     guestRows // include raw rows for detailed export
     };
   } else {
     guestBlock = null;
@@ -814,8 +838,16 @@ async function cargarHistorial() {
           total_descuento: 0
         };
       }
-      if (r.tipo === 'completo') employeeMap[key].completos++;
-      if (r.tipo === 'segundo') employeeMap[key].segundos++;
+      // Infer type for 'llevar' records so payroll counts are correct
+      const tipoRaw = r.tipo || '';
+      let tipoEffective = tipoRaw;
+      if (r.modalidad === 'llevar') {
+        if (r.llevar_plato && String(r.llevar_plato).trim().length > 0) tipoEffective = 'completo';
+        else if (r.llevar_sopa && String(r.llevar_sopa).trim().length > 0) tipoEffective = 'segundo';
+        else if (tipoRaw === 'llevar') tipoEffective = 'segundo';
+      }
+      if (tipoEffective === 'completo') employeeMap[key].completos++;
+      if (tipoEffective === 'segundo') employeeMap[key].segundos++;
       if (r.cargo_extra_monto) employeeMap[key].extras += parseFloat(r.cargo_extra_monto) || 0;
       employeeMap[key].total_consumo += (r.cargo_extra_monto ? parseFloat(r.cargo_extra_monto) : 0) || 0;
       employeeMap[key].total_subsidio += parseFloat(r.total_subsidio || 0) || 0;
@@ -847,12 +879,20 @@ async function cargarHistorial() {
   const byDate = {};
   rows.forEach(r => {
     if (!byDate[r.fecha]) byDate[r.fecha] = { total: 0, completo: 0, segundo: 0, llevar: 0, conf: 0, flag: 0 };
+    // infer effective tipo for llevar
+    const tipoRaw = r.tipo || '';
+    let tipoEffective = tipoRaw;
+    if (r.modalidad === 'llevar') {
+      if (r.llevar_plato && String(r.llevar_plato).trim().length > 0) tipoEffective = 'completo';
+      else if (r.llevar_sopa && String(r.llevar_sopa).trim().length > 0) tipoEffective = 'segundo';
+      else if (tipoRaw === 'llevar') tipoEffective = 'segundo';
+    }
     byDate[r.fecha].total++;
-    if (r.tipo === 'completo')    byDate[r.fecha].completo++;
-    if (r.tipo === 'segundo')     byDate[r.fecha].segundo++;
-    if (r.modalidad === 'llevar') byDate[r.fecha].llevar++;
-    if (r.asistio)                byDate[r.fecha].conf++;
-    if (r.asistio_flag)           byDate[r.fecha].flag++;
+    if (tipoEffective === 'completo')    byDate[r.fecha].completo++;
+    if (tipoEffective === 'segundo')     byDate[r.fecha].segundo++;
+    if (r.modalidad === 'llevar')         byDate[r.fecha].llevar++;
+    if (r.asistio)                        byDate[r.fecha].conf++;
+    if (r.asistio_flag)                   byDate[r.fecha].flag++;
   });
 
   const total  = rows.length;
@@ -984,6 +1024,24 @@ async function exportFreqExcel() {
   const worksheet = XLSX.utils.json_to_sheet(excelData, { header: headers });
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Frecuencia');
+  // If we have guest rows, add a detailed sheet for invitados
+  if (guestBlock && guestBlock.rows && guestBlock.rows.length) {
+    const guestData = guestBlock.rows.map((r, i) => ({
+      '#': i+1,
+      'Nombre': r.empleado,
+      'Modalidad': r.modalidad,
+      'Tipo (efectivo)': (r.modalidad==='llevar' && r.llevar_plato ? 'completo' : (r.modalidad==='llevar' && r.llevar_sopa ? 'segundo' : r.tipo || '')),
+      'Sopa': r.llevar_sopa || '',
+      'Plato': r.llevar_plato || '',
+      'Postre': r.llevar_postre ? 'Sí' : 'No',
+      'Bebida': r.llevar_bebida || '',
+      'Recogedor': r.recogedor || '',
+      'Hora': horaDisplay(r.hora),
+      'Asistió': r.asistio ? 'Sí' : 'No'
+    }));
+    const guestSheet = XLSX.utils.json_to_sheet(guestData, { header: ['#','Nombre','Modalidad','Tipo (efectivo)','Sopa','Plato','Postre','Bebida','Recogedor','Hora','Asistió'] });
+    XLSX.utils.book_append_sheet(workbook, guestSheet, 'Invitados');
+  }
   XLSX.writeFile(workbook, `supervisor-frecuencia-${mes}.xlsx`);
 }
 

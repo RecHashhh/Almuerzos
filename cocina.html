@@ -321,11 +321,8 @@ function renderList(items, containerId) {
         </div>
         <div style="display:flex;flex-direction:column;align-items:center;gap:8px;">
           ${r.modalidad === 'ahi' ? `<button style="width:42px;height:42px;border-radius:12px;border:2px solid var(--border);background:rgba(232,80,10,.1);cursor:pointer;font-size:.9rem;transition:all .2s;" onclick="openExtraModal('${r.id}', '${r.empleado}', ${r.cargo_extra_monto || 'null'}, ${r.cargo_extra_pagado || false})" title="Registrar cargo extra">💰</button>` : ''}
-          <button class="check-btn ${checkClass}" onclick="toggleCheck('${r.id}', ${isConf}, ${isFlagged})"
-            title="${isConf ? 'Desmarcar asistencia' : 'Confirmar asistencia'}">
-            ${checkIcon}
-          </button>
-          <div class="uncheck-hint">⚠️ Rev.<br>admin</div>
+          <div style="font-size:.86rem;font-weight:700;color:${isConf && !isFlagged ? 'var(--success)' : isFlagged ? 'var(--warning)' : 'var(--muted)'};text-align:center;min-width:72px;">${isConf && !isFlagged ? 'Confirmado' : isFlagged ? 'Pendiente revisión' : 'Pendiente'}</div>
+          <button style="background:transparent;border:1px solid var(--border);padding:6px 8px;border-radius:8px;font-size:.8rem;cursor:pointer;" onclick="toggleCheck('${r.id}', ${isConf}, ${isFlagged})">Marcar</button>
         </div>
       </div>`;
   }).join('');

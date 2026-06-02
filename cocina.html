@@ -309,9 +309,9 @@ function renderList(items, containerId) {
     let llevarDetail = '';
     if (r.modalidad === 'llevar') {
       llevarDetail = `<div class="ci-llevar-detail">
-        <div class="ci-llevar-row"><span class="ci-llevar-key">Sopa:</span><span class="ci-llevar-val">${r.llevar_sopa ? '✅ Sí':'❌ No'}</span></div>
+        <div class="ci-llevar-row"><span class="ci-llevar-key">Sopa:</span><span class="ci-llevar-val">${r.llevar_sopa|| '—'}</span></div>
         <div class="ci-llevar-row"><span class="ci-llevar-key">Plato:</span><span class="ci-llevar-val">${r.llevar_plato||'—'}</span></div>
-        <div class="ci-llevar-row"><span class="ci-llevar-key">Postre:</span><span class="ci-llevar-val">${r.llevar_postre ? '✅ Sí':'❌ No'}</span></div>
+        <div class="ci-llevar-row"><span class="ci-llevar-key">Postre:</span><span class="ci-llevar-val">${r.llevar_postre|| '—'}</span></div>
         <div class="ci-llevar-row"><span class="ci-llevar-key">Bebida:</span><span class="ci-llevar-val">${r.llevar_bebida||'—'}</span></div>
         <div class="ci-llevar-row"><span class="ci-llevar-key">Recoge:</span><span class="ci-llevar-val">${r.recogedor||'—'}</span></div>
       </div>`;

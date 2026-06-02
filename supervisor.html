@@ -317,7 +317,7 @@ tr:hover td{background:rgba(255,255,255,.025);}
       <input type="date" class="date-in" id="f-hoy" onchange="cargarHoy()">
       <button class="btn btn-ghost" style="font-size:.82rem;padding:9px 14px;" onclick="cargarHoy()">🔄</button>
       <div class="spacer"></div>
-      <button class="btn btn-secondary" style="font-size:.82rem;padding:9px 16px;" onclick="exportHoy()">⬇ CSV</button>
+      <button class="btn btn-secondary" style="font-size:.82rem;padding:9px 16px;" onclick="exportHoyExcel()" style="background-color: #10B981; color: white;">📊 Excel</button>
     </div>
 
     <div class="table-card">
@@ -344,7 +344,7 @@ tr:hover td{background:rgba(255,255,255,.025);}
       <input type="date" class="date-in" id="f-asist" onchange="cargarAsistencia()">
       <button class="btn btn-ghost" style="font-size:.82rem;padding:9px 14px;" onclick="cargarAsistencia()">🔄</button>
       <div class="spacer"></div>
-      <button class="btn btn-secondary" style="font-size:.82rem;padding:9px 16px;" onclick="exportAsist()">⬇ CSV</button>
+      <button class="btn btn-secondary" style="font-size:.82rem;padding:9px 16px;" onclick="exportAsistExcel()" style="background-color: #10B981; color: white;">📊 Excel</button>
     </div>
 
     <!-- Asistencia stats -->
@@ -374,7 +374,7 @@ tr:hover td{background:rgba(255,255,255,.025);}
       <input type="month" class="date-in" id="f-freq-mes" onchange="cargarFrecuencia()">
       <button class="btn btn-ghost" style="font-size:.82rem;padding:9px 14px;" onclick="cargarFrecuencia()">🔄</button>
       <div class="spacer"></div>
-      <button class="btn btn-secondary" style="font-size:.82rem;padding:9px 16px;" onclick="exportFreq()">⬇ CSV</button>
+      <button class="btn btn-secondary" style="font-size:.82rem;padding:9px 16px;" onclick="exportFreqExcel()" style="background-color: #10B981; color: white;">📊 Excel</button>
     </div>
 
     <div class="summary-row" id="summary-freq" style="margin-bottom:18px;"></div>
@@ -805,7 +805,7 @@ async function cargarHistorial() {
           cedula: r.cedula || '',
           ccos: r.ccos || '',
           departamento: r.departamento || '',
-          observacion: r.observacion || 'AS',
+          observacion: r.observacion || '',
           completos: 0,
           segundos: 0,
           extras: 0,
@@ -887,48 +887,95 @@ async function cargarHistorial() {
 // ════════════════════════════
 // EXPORTS
 // ════════════════════════════
-async function exportHoy() {
+async function exportHoyExcel() {
   const fecha = document.getElementById('f-hoy').value || fechaHoy();
   const { data, error } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
   if (error) { alert('❌ Error al exportar: ' + error.message); return; }
   if (!data?.length) { alert('Sin datos.'); return; }
-  const h = ['#','Empleado','Tipo usuario','Modalidad','Tipo','Sopa','Plato','Postre','Bebida','Recogedor','Hora','Asistio','Hora confirmación'];
-  const rows = data.map((r, i) => [
-    i+1, r.empleado, r.tipo_user, r.modalidad, r.tipo||'',
-    r.llevar_sopa ?? '', r.llevar_plato || '', r.llevar_postre ?? '', r.llevar_bebida || '', r.recogedor || '',
-    horaDisplay(r.hora),
-    r.asistio ? 'Sí' : 'No',
-    r.asistio_marcado ? horaDisplay(r.asistio_marcado) : ''
-  ]);
-  dlCSV([h, ...rows], `supervisor-${fecha}.csv`);
+  
+  const excelData = data.map((r, i) => ({
+    '#': i + 1,
+    'Empleado': r.empleado,
+    'Tipo usuario': r.tipo_user,
+    'Modalidad': r.modalidad,
+    'Tipo': r.tipo || '',
+    'Sopa': r.llevar_sopa ?? '',
+    'Plato': r.llevar_plato || '',
+    'Postre': r.llevar_postre ?? '',
+    'Bebida': r.llevar_bebida || '',
+    'Recogedor': r.recogedor || '',
+    'Hora': horaDisplay(r.hora),
+    'Asistió': r.asistio ? 'Sí' : 'No',
+    'Hora confirmación': r.asistio_marcado ? horaDisplay(r.asistio_marcado) : ''
+  }));
+  
+  const headers = ['#', 'Empleado', 'Tipo usuario', 'Modalidad', 'Tipo', 'Sopa', 'Plato', 'Postre', 'Bebida', 'Recogedor', 'Hora', 'Asistió', 'Hora confirmación'];
+  const worksheet = XLSX.utils.json_to_sheet(excelData, { header: headers });
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Hoy');
+  XLSX.writeFile(workbook, `supervisor-${fecha}.xlsx`);
 }
 
-async function exportAsist() {
+async function exportAsistExcel() {
   const fecha = document.getElementById('f-asist').value || fechaHoy();
   const { data, error } = await db.from('almuerzos').select('*').eq('fecha', fecha).order('hora');
   if (error) { alert('❌ Error al exportar: ' + error.message); return; }
   if (!data?.length) { alert('Sin datos.'); return; }
-  const h = ['#','Empleado','Modalidad','Tipo','Registro','Confirmado','Hora confirmación','Flag'];
-  const rows = data.map((r, i) => [
-    i+1, r.empleado, r.modalidad, r.tipo||'',
-    horaDisplay(r.hora),
-    r.asistio ? 'Sí' : 'No',
-    r.asistio_marcado ? horaDisplay(r.asistio_marcado) : '',
-    r.asistio_flag ? 'Pendiente revisión' : ''
-  ]);
-  dlCSV([h, ...rows], `supervisor-asistencia-${fecha}.csv`);
+  
+  const excelData = data.map((r, i) => ({
+    '#': i + 1,
+    'Empleado': r.empleado,
+    'Modalidad': r.modalidad,
+    'Tipo': r.tipo || '',
+    'Registro': horaDisplay(r.hora),
+    'Confirmado': r.asistio ? 'Sí' : 'No',
+    'Hora confirmación': r.asistio_marcado ? horaDisplay(r.asistio_marcado) : '',
+    'Flag': r.asistio_flag ? 'Pendiente revisión' : ''
+  }));
+  
+  const headers = ['#', 'Empleado', 'Modalidad', 'Tipo', 'Registro', 'Confirmado', 'Hora confirmación', 'Flag'];
+  const worksheet = XLSX.utils.json_to_sheet(excelData, { header: headers });
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Asistencia');
+  XLSX.writeFile(workbook, `supervisor-asistencia-${fecha}.xlsx`);
 }
 
-async function exportFreq() {
+async function exportFreqExcel() {
   const mes = document.getElementById('f-freq-mes').value;
   if (!mes || (!freqData.length && !guestBlock)) { alert('Sin datos.'); return; }
-  const h = ['#','Tipo','Empleado / Grupo','Total pedidos','Completos','Segundos','Para llevar','Confirmados'];
-  const msRows = freqData.map(([n, c], i) => [i+1, 'Empleado MS', n, c.total, c.completo, c.segundo, c.llevar, c.conf]);
-  const guestRows = guestBlock
-    ? [[msRows.length + 1, 'Invitados', `INVITADOS (${guestBlock.nombres.join(' | ')})`,
-        guestBlock.total, guestBlock.completo, guestBlock.segundo, guestBlock.llevar, guestBlock.conf]]
-    : [];
-  dlCSV([h, ...msRows, ...guestRows], `supervisor-frecuencia-${mes}.csv`);
+  
+  const excelData = [];
+  freqData.forEach(([n, c], i) => {
+    excelData.push({
+      '#': i + 1,
+      'Tipo': 'Empleado MS',
+      'Empleado / Grupo': n,
+      'Total pedidos': c.total,
+      'Completos': c.completo,
+      'Segundos': c.segundo,
+      'Para llevar': c.llevar,
+      'Confirmados': c.conf
+    });
+  });
+  
+  if (guestBlock) {
+    excelData.push({
+      '#': excelData.length + 1,
+      'Tipo': 'Invitados',
+      'Empleado / Grupo': `INVITADOS (${guestBlock.nombres.join(' | ')})`,
+      'Total pedidos': guestBlock.total,
+      'Completos': guestBlock.completo,
+      'Segundos': guestBlock.segundo,
+      'Para llevar': guestBlock.llevar,
+      'Confirmados': guestBlock.conf
+    });
+  }
+  
+  const headers = ['#', 'Tipo', 'Empleado / Grupo', 'Total pedidos', 'Completos', 'Segundos', 'Para llevar', 'Confirmados'];
+  const worksheet = XLSX.utils.json_to_sheet(excelData, { header: headers });
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Frecuencia');
+  XLSX.writeFile(workbook, `supervisor-frecuencia-${mes}.xlsx`);
 }
 
 async function exportMes() {
@@ -985,7 +1032,7 @@ function downloadGeneralExcel() {
       'COSTO POR ALMUERZO': totalConsumo,
       'TOTAL USD SUBSIDIO': totalSubsidio,
       'DESCUENTO ABR-2026': totalDescuento,
-      'OBSERVACIONES': emp.observacion || 'AS'
+      'OBSERVACIONES': emp.observacion || ''
     };
   });
 
@@ -1169,7 +1216,7 @@ async function downloadDetailExcel() {
     'COSTO POR ALMUERZO': totalConsumo,
     'TOTAL USD SUBSIDIO': totalSubsidio,
     'DESCUENTO ABR-2026': totalDescuento,
-    'OBSERVACIONES': emp.observacion || 'AS'
+    'OBSERVACIONES': emp.observacion || ''
   }];
 
   const headers = [

@@ -154,6 +154,32 @@ tr:hover td{background:rgba(255,255,255,.025);}
 .modal-col-left{padding:22px 20px 22px 24px;border-right:1px solid var(--border);}
 .modal-col-right{padding:22px 24px 22px 20px;}
 
+.modal-grid{display:grid;grid-template-columns:1fr 1fr;gap:22px;}
+.modal-grid .modal-col{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px;}
+.modal-row{display:flex;justify-content:space-between;gap:12px;padding:10px 0;border-bottom:1px solid var(--border);}
+.modal-row:last-child{border-bottom:none;}
+.modal-key{color:var(--muted);font-size:.86rem;}
+.modal-val{font-size:.98rem;font-weight:700;}
+.receipt-box{background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:20px;}
+.receipt-title{font-family:'Syne',sans-serif;font-size:1rem;font-weight:800;color:var(--text);margin-bottom:14px;}
+.receipt-row{display:grid;grid-template-columns:1fr auto auto;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
+.receipt-row:last-child{border-bottom:none;}
+.receipt-item{color:var(--text);font-size:.9rem;}
+.receipt-qty{color:var(--muted);font-size:.82rem;text-align:right;}
+.receipt-value{font-weight:700;text-align:right;}
+.receipt-total{display:flex;justify-content:space-between;align-items:center;padding-top:14px;margin-top:12px;border-top:1px solid var(--border);font-size:1rem;font-weight:800;}
+.report-detail-card{margin-top:20px;background:var(--surface);border:1px solid var(--border);border-radius:18px;padding:18px;}
+.report-detail-title{font-size:.86rem;font-weight:700;margin-bottom:12px;}
+.report-detail-row{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);}
+.report-detail-row:last-child{border-bottom:none;}
+.report-detail-key{color:var(--muted);font-weight:700;}
+.report-detail-val{text-align:right;color:var(--text);}
+@media(max-width:760px){
+  .modal-grid{grid-template-columns:1fr;}
+  .report-detail-row{grid-template-columns:1fr 1fr;}
+  .report-detail-row span:nth-child(3){display:block;text-align:right;}
+}
+
 /* Left col stats */
 .modal-section-title{font-size:.68rem;font-weight:700;text-transform:uppercase;
   letter-spacing:.08em;color:var(--muted);margin-bottom:12px;}
@@ -795,12 +821,20 @@ async function cargarHistorial() {
       employeeMap[key].total_subsidio += parseFloat(r.total_subsidio || 0) || 0;
       employeeMap[key].total_descuento += parseFloat(r.total_descuento || 0) || 0;
     });
-    const completePrice = 3.50;
-    const secondPrice = 3.00;
-    window.allEmployeesData = Object.values(employeeMap).map(emp => ({
-      ...emp,
-      total_consumo: emp.completos * completePrice + emp.segundos * secondPrice + emp.extras
-    }));
+    const completePrice = 3.75;
+    const secondPrice = 3.25;
+    const subsidyPerComplete = 2.00;
+    const subsidyPerSecond = 2.00;
+    window.allEmployeesData = Object.values(employeeMap).map(emp => {
+      const totalConsumo = emp.completos * completePrice + emp.segundos * secondPrice + emp.extras;
+      const totalSubsidio = emp.completos * subsidyPerComplete + emp.segundos * subsidyPerSecond;
+      return {
+        ...emp,
+        total_consumo: totalConsumo,
+        total_subsidio: totalSubsidio,
+        total_descuento: totalConsumo - totalSubsidio
+      };
+    });
   }
 
   if (!rows.length) {
@@ -924,29 +958,54 @@ function downloadGeneralExcel() {
   const year = date.getFullYear();
   const filename = `ReporteGeneral_${month}_${year}.xlsx`;
 
+  const completePrice = 3.75;
+  const secondPrice = 3.25;
+  const subsidyPerComplete = 2.00;
+  const subsidyPerSecond = 2.00;
+
   const excelData = empleados.map((emp, index) => {
     const nombreEmp = emp.nombre || emp.empleado || 'Sin Nombre';
+    const completos = emp.completos || 0;
+    const segundos = emp.segundos || 0;
+    const extras = Number(emp.extras || 0);
+    const totalConsumo = completos * completePrice + segundos * secondPrice + extras;
+    const totalSubsidio = completos * subsidyPerComplete + segundos * subsidyPerSecond;
+    const totalDescuento = totalConsumo - totalSubsidio;
+
     return {
-      'No.': index + 1,
       'CEDULA': emp.cedula || '',
       'APELLIDOS Y NOMBRES': nombreEmp.toUpperCase(),
-      'Almuerzo Completo': emp.completos || 0,
-      'Almuerzo solo segundo': emp.segundos || 0,
-      'EXTRAS': emp.extras || 0,
-      'costo almuerzo completo 3,50': 3.50,
-      'costo almuerzzo medio 3,00': 3.00,
-      'SUBSIDIO POR COMIDA C': 2.00,
-      'SUBSIDIO POR COMIDA S': 2.00,
-      'COSTO POR ALMUERZO': emp.total_consumo || 0,
-      'TOTAL USD SUBSIDIO': emp.total_subsidio || 0,
-      'DESCUENTO': emp.total_descuento || 0,
-      'OBSERVACIONES': emp.observacion || 'AS',
-      'CCOS': emp.ccos || '',
-      'DEPARTAMENTO': emp.departamento || ''
+      'Almuerzo Completo': completos,
+      'Almuerzo solo segundo': segundos,
+      'EXTRAS': extras,
+      'costo almuerzo completo 3,75': completePrice,
+      'costo almuerzzo medio 3,25': secondPrice,
+      'SUBSIDIO POR COMIDA C': subsidyPerComplete,
+      'SUBSIDIO POR COMIDA S': subsidyPerSecond,
+      'COSTO POR ALMUERZO': totalConsumo,
+      'TOTAL USD SUBSIDIO': totalSubsidio,
+      'DESCUENTO ABR-2026': totalDescuento,
+      'OBSERVACIONES': emp.observacion || 'AS'
     };
   });
 
-  const worksheet = XLSX.utils.json_to_sheet(excelData);
+  const headers = [
+    'CEDULA',
+    'APELLIDOS Y NOMBRES',
+    'Almuerzo Completo',
+    'Almuerzo solo segundo',
+    'EXTRAS',
+    'costo almuerzo completo 3,75',
+    'costo almuerzzo medio 3,25',
+    'SUBSIDIO POR COMIDA C',
+    'SUBSIDIO POR COMIDA S',
+    'COSTO POR ALMUERZO',
+    'TOTAL USD SUBSIDIO',
+    'DESCUENTO ABR-2026',
+    'OBSERVACIONES'
+  ];
+
+  const worksheet = XLSX.utils.json_to_sheet(excelData, { header: headers });
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Resumen Nomina');
   XLSX.writeFile(workbook, filename);
@@ -971,7 +1030,7 @@ function showDetailModal(empleado, counts) {
   const totalPagado = counts.extrasPagados && counts.extrasPagados.length > 0 ? counts.extrasPagados.reduce((a,b)=>a+b,0) : 0;
   const totalPendiente = counts.extrasNoConfirmados && counts.extrasNoConfirmados.length > 0 ? counts.extrasNoConfirmados.reduce((a,b)=>a+b,0) : 0;
   const completePrice = 3.75;
-  const secondPrice = 3.50;
+  const secondPrice = 3.25;
   const completeTotal = counts.completo * completePrice;
   const secondTotal = counts.segundo * secondPrice;
   const invoiceTotal = completeTotal + secondTotal + totalExtra;
@@ -989,7 +1048,7 @@ function showDetailModal(empleado, counts) {
       <div class="modal-col">
         <div class="modal-row">
           <span class="modal-key">📊 Total de pedidos</span>
-          <span class="modal-val" style="font-family:'Syne',sans-serif;font-size:1.3rem;color:#3B82F6;font-weight:800">${counts.total}</span>
+          <span class="modal-val">${counts.total}</span>
         </div>
         <div class="modal-row">
           <span class="modal-key">🍱 Completos</span>
@@ -1011,23 +1070,21 @@ function showDetailModal(empleado, counts) {
           <span class="modal-key">🗓️ Días con pedido</span>
           <span class="modal-val">${daysActive}</span>
         </div>
-        <div style="border-top:2px solid var(--border);margin-top:12px;padding-top:12px;">
-          <div class="modal-row">
-            <span class="modal-key">💰 Total cargos extras</span>
-            <span class="modal-val" style="color:#F59E0B;font-weight:700">$${totalExtra.toFixed(2)}</span>
-          </div>
-          <div class="modal-row">
-            <span class="modal-key">✅ Pagados</span>
-            <span class="modal-val" style="color:#22C55E;font-weight:700">$${totalPagado.toFixed(2)}</span>
-          </div>
-          <div class="modal-row">
-            <span class="modal-key">⏳ Pendientes</span>
-            <span class="modal-val" style="color:#EF4444;font-weight:700">$${totalPendiente.toFixed(2)}</span>
-          </div>
-          <div class="modal-row">
-            <span class="modal-key">💵 Promedio cargo</span>
-            <span class="modal-val">$${promExtra.toFixed(2)}</span>
-          </div>
+        <div class="modal-row" style="border-top:2px solid var(--border);margin-top:14px;padding-top:14px;">
+          <span class="modal-key">💰 Total cargos extras</span>
+          <span class="modal-val" style="color:#F59E0B;">$${totalExtra.toFixed(2)}</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-key">✅ Pagados</span>
+          <span class="modal-val" style="color:#22C55E;">$${totalPagado.toFixed(2)}</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-key">⏳ Pendientes</span>
+          <span class="modal-val" style="color:#EF4444;">$${totalPendiente.toFixed(2)}</span>
+        </div>
+        <div class="modal-row">
+          <span class="modal-key">💵 Promedio cargo</span>
+          <span class="modal-val">$${promExtra.toFixed(2)}</span>
         </div>
       </div>
       <div class="modal-col">
@@ -1040,12 +1097,12 @@ function showDetailModal(empleado, counts) {
           </div>
           <div class="receipt-row">
             <span class="receipt-item">Solo Segundo</span>
-            <span class="receipt-qty">${counts.segundo} x $3.50</span>
+            <span class="receipt-qty">${counts.segundo} x $3.25</span>
             <span class="receipt-value">$${secondTotal.toFixed(2)}</span>
           </div>
           <div class="receipt-row">
             <span class="receipt-item">Extras registrados</span>
-            <span class="receipt-qty">${counts.extras.length} items</span>
+            <span class="receipt-qty">${counts.extras?.length || 0} items</span>
             <span class="receipt-value">$${totalExtra.toFixed(2)}</span>
           </div>
           <div class="receipt-total">
@@ -1062,33 +1119,6 @@ function showDetailModal(empleado, counts) {
       </div>
       ${detailRows || `<div style="font-size:.85rem;color:var(--muted);padding:.8rem 0;">No hay registros detallados.</div>`}
       ${moreRecords}
-    </div>
-        </div>
-      </div>
-      <div class="modal-col">
-        <div class="receipt-box">
-          <div class="receipt-title">Factura rápida</div>
-          <div class="receipt-row">
-            <span class="receipt-item">Almuerzo Completo</span>
-            <span class="receipt-qty">${counts.completo} x $3.75</span>
-            <span class="receipt-value">$${completeTotal.toFixed(2)}</span>
-          </div>
-          <div class="receipt-row">
-            <span class="receipt-item">Solo Segundo</span>
-            <span class="receipt-qty">${counts.segundo} x $3.50</span>
-            <span class="receipt-value">$${secondTotal.toFixed(2)}</span>
-          </div>
-          <div class="receipt-row">
-            <span class="receipt-item">Extras registrados</span>
-            <span class="receipt-qty">${counts.extras?.length || 0} items</span>
-            <span class="receipt-value">$${totalExtra.toFixed(2)}</span>
-          </div>
-          <div class="receipt-total">
-            <span>Total acumulado</span>
-            <span>$${invoiceTotal.toFixed(2)}</span>
-          </div>
-        </div>
-      </div>
     </div>
   `;
   
@@ -1117,31 +1147,48 @@ async function downloadDetailExcel() {
   const year = date.getFullYear();
   const filename = `${cleanName}_${month}_${year}.xlsx`;
 
-  const completePrice = 3.50;
-  const secondPrice = 3.00;
+  const completePrice = 3.75;
+  const secondPrice = 3.25;
+  const subsidyPerComplete = 2.00;
+  const subsidyPerSecond = 2.00;
   const totalExtra = emp.extras?.reduce((sum, value) => sum + Number(value || 0), 0) || 0;
-  const totalConsumo = emp.total_consumo || ((emp.completo || 0) * completePrice + (emp.segundo || 0) * secondPrice + totalExtra);
+  const totalConsumo = (emp.completo || 0) * completePrice + (emp.segundo || 0) * secondPrice + totalExtra;
+  const totalSubsidio = (emp.completo || 0) * subsidyPerComplete + (emp.segundo || 0) * subsidyPerSecond;
+  const totalDescuento = totalConsumo - totalSubsidio;
 
   const rowData = [{
-    'No.': 1,
-    'CEDULA': emp.cedula || 'Sin registro',
+    'CEDULA': emp.cedula || '',
     'APELLIDOS Y NOMBRES': rawName.toUpperCase(),
     'Almuerzo Completo': emp.completo || 0,
     'Almuerzo solo segundo': emp.segundo || 0,
     'EXTRAS': totalExtra,
-    'costo almuerzo completo 3,50': completePrice,
-    'costo almuerzzo medio 3,00': secondPrice,
-    'SUBSIDIO POR COMIDA C': 2.00,
-    'SUBSIDIO POR COMIDA S': 2.00,
+    'costo almuerzo completo 3,75': completePrice,
+    'costo almuerzzo medio 3,25': secondPrice,
+    'SUBSIDIO POR COMIDA C': subsidyPerComplete,
+    'SUBSIDIO POR COMIDA S': subsidyPerSecond,
     'COSTO POR ALMUERZO': totalConsumo,
-    'TOTAL USD SUBSIDIO': emp.total_subsidio || 0,
-    'DESCUENTO': emp.total_descuento || 0,
-    'OBSERVACIONES': emp.observacion || 'AS',
-    'CCOS': emp.ccos || '',
-    'DEPARTAMENTO': emp.departamento || ''
+    'TOTAL USD SUBSIDIO': totalSubsidio,
+    'DESCUENTO ABR-2026': totalDescuento,
+    'OBSERVACIONES': emp.observacion || 'AS'
   }];
 
-  const worksheet = XLSX.utils.json_to_sheet(rowData);
+  const headers = [
+    'CEDULA',
+    'APELLIDOS Y NOMBRES',
+    'Almuerzo Completo',
+    'Almuerzo solo segundo',
+    'EXTRAS',
+    'costo almuerzo completo 3,75',
+    'costo almuerzzo medio 3,25',
+    'SUBSIDIO POR COMIDA C',
+    'SUBSIDIO POR COMIDA S',
+    'COSTO POR ALMUERZO',
+    'TOTAL USD SUBSIDIO',
+    'DESCUENTO ABR-2026',
+    'OBSERVACIONES'
+  ];
+
+  const worksheet = XLSX.utils.json_to_sheet(rowData, { header: headers });
   const workbook = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(workbook, worksheet, 'Detalle Empleado');
   XLSX.writeFile(workbook, filename);

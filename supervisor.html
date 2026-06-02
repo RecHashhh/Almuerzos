@@ -871,7 +871,7 @@ async function cargarHistorial() {
   document.getElementById('hist-wrap').innerHTML = `
     <div class="day-cards">
       ${Object.entries(byDate).sort().map(([fecha, c]) => `
-        <div class="day-card">
+        <div class="day-card" onclick="goToHoyWithDate('${fecha}')" style="cursor:pointer;transition:all .2s;">
           <div class="day-date">${fechaDisplay(fecha)}</div>
           <div class="day-pills">
             <span class="pill pill-completo">🍱 ${c.completo}</span>
@@ -882,6 +882,15 @@ async function cargarHistorial() {
           </div>
         </div>`).join('')}
     </div>`;
+}
+
+function goToHoyWithDate(fecha) {
+  // Set the date in the Hoy tab
+  document.getElementById('f-hoy').value = fecha;
+  // Switch to Hoy tab
+  st('hoy', document.querySelector('.tab[onclick="st(\'hoy\',this)"]'));
+  // Load data for that date
+  cargarHoy();
 }
 
 // ════════════════════════════
@@ -1003,14 +1012,21 @@ function downloadGeneralExcel() {
   const date = new Date();
   const month = String(date.getMonth() + 1).padStart(2, '0');
   const year = date.getFullYear();
-  const filename = `ReporteGeneral_${month}_${year}.xlsx`;
+  const filename = `RESUMEN ALIMENTACION UIO_${month}_${year}.xlsx`;
 
   const completePrice = 3.75;
   const secondPrice = 3.25;
   const subsidyPerComplete = 2.00;
   const subsidyPerSecond = 2.00;
 
-  const excelData = empleados.map((emp, index) => {
+  // Sort employees alphabetically by name
+  const sortedEmpleados = [...empleados].sort((a, b) => {
+    const nameA = (a.nombre || a.empleado || 'Sin Nombre').toUpperCase();
+    const nameB = (b.nombre || b.empleado || 'Sin Nombre').toUpperCase();
+    return nameA.localeCompare(nameB);
+  });
+
+  const excelData = sortedEmpleados.map((emp, index) => {
     const nombreEmp = emp.nombre || emp.empleado || 'Sin Nombre';
     const completos = emp.completos || 0;
     const segundos = emp.segundos || 0;

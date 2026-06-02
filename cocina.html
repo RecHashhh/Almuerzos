@@ -288,8 +288,19 @@ function renderList(items, containerId) {
       ? '<span class="pill pill-ahi">🪑 Aquí</span>'
       : '<span class="pill pill-llevar">🥡 Llevar</span>';
 
-    const tipoPill = r.modalidad === 'ahi'
-      ? `<span class="pill ${r.tipo==='completo'?'pill-completo':'pill-segundo'}">${r.tipo==='completo'?'🍱 Completo':'🍛 Segundo'}</span>`
+    // Inferir tipo efectivo para mostrar en la UI (incluye 'llevar')
+    let tipoEffective = '';
+    if (r.modalidad === 'ahi') {
+      tipoEffective = r.tipo || '';
+    } else if (r.modalidad === 'llevar') {
+      if (r.llevar_plato) tipoEffective = 'completo';
+      else if (r.llevar_sopa) tipoEffective = 'segundo';
+      else if (r.tipo && r.tipo !== 'llevar') tipoEffective = r.tipo;
+      else tipoEffective = 'segundo'; // fallback
+    }
+
+    const tipoPill = tipoEffective
+      ? `<span class="pill ${tipoEffective==='completo'?'pill-completo':'pill-segundo'}">${tipoEffective==='completo'?'🍱 Completo':'🍛 Segundo'}</span>`
       : '';
 
     let guestBadge = r.tipo_user === 'guest' ? '<span class="badge badge-blue">Invitado</span>' : '';

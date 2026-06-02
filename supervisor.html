@@ -365,7 +365,9 @@ tr:hover td{background:rgba(255,255,255,.025);}
       <input type="month" class="date-in" id="f-hist-mes" onchange="cargarHistorial()">
       <button class="btn btn-ghost" style="font-size:.82rem;padding:9px 14px;" onclick="cargarHistorial()">🔄</button>
       <div class="spacer"></div>
-      <button class="btn btn-secondary" style="font-size:.82rem;padding:9px 16px;" onclick="exportMes()">⬇ CSV mes</button>
+      <button onclick="downloadGeneralExcel()" class="btn btn-primary" style="background-color: #10B981; color: white; padding: 10px 15px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+        📊 Descargar Nómina Completa (Excel)
+      </button>
     </div>
     <div class="summary-row" id="summary-hist" style="margin-bottom:18px;"></div>
     <div id="hist-wrap">
@@ -379,7 +381,7 @@ tr:hover td{background:rgba(255,255,255,.025);}
       <button class="modal-close" onclick="closeDetailModal()">✕</button>
       <div class="modal-title" id="modal-empleado">—</div>
       <div class="modal-actions">
-        <button class="btn btn-secondary" onclick="downloadDetailPDF()">📄 Descargar PDF</button>
+        <button class="btn btn-secondary" onclick="downloadDetailExcel()">📄 Descargar Excel</button>
       </div>
       <div id="modal-content"></div>
     </div>
@@ -396,6 +398,7 @@ if (!requireAuth('supervisor')) {}
 
 let freqData = [];
 let cdVal = CONFIG.refreshInterval / 1000;
+window.allEmployeesData = [];
 
 document.addEventListener('DOMContentLoaded', () => {
   const hoy = fechaHoy();
@@ -765,6 +768,41 @@ async function cargarHistorial() {
   
   const rows = data || [];
 
+  window.allEmployeesData = [];
+  if (rows.length) {
+    const employeeMap = {};
+    rows.forEach(r => {
+      const key = r.empleado || 'Sin Nombre';
+      if (!employeeMap[key]) {
+        employeeMap[key] = {
+          empleado: key,
+          cedula: r.cedula || '',
+          ccos: r.ccos || '',
+          departamento: r.departamento || '',
+          observacion: r.observacion || 'AS',
+          completos: 0,
+          segundos: 0,
+          extras: 0,
+          total_consumo: 0,
+          total_subsidio: 0,
+          total_descuento: 0
+        };
+      }
+      if (r.tipo === 'completo') employeeMap[key].completos++;
+      if (r.tipo === 'segundo') employeeMap[key].segundos++;
+      if (r.cargo_extra_monto) employeeMap[key].extras += parseFloat(r.cargo_extra_monto) || 0;
+      employeeMap[key].total_consumo += (r.cargo_extra_monto ? parseFloat(r.cargo_extra_monto) : 0) || 0;
+      employeeMap[key].total_subsidio += parseFloat(r.total_subsidio || 0) || 0;
+      employeeMap[key].total_descuento += parseFloat(r.total_descuento || 0) || 0;
+    });
+    const completePrice = 3.50;
+    const secondPrice = 3.00;
+    window.allEmployeesData = Object.values(employeeMap).map(emp => ({
+      ...emp,
+      total_consumo: emp.completos * completePrice + emp.segundos * secondPrice + emp.extras
+    }));
+  }
+
   if (!rows.length) {
     document.getElementById('hist-wrap').innerHTML =
       `<div class="empty"><div class="empty-ico">📅</div>Sin registros este mes</div>`;
@@ -872,6 +910,46 @@ async function exportMes() {
   const h = ['#','Empleado','Modalidad','Tipo','Fecha','Hora','Asistio'];
   const rows = data.map((r, i) => [i+1, r.empleado, r.modalidad, r.tipo||'', r.fecha, horaDisplay(r.hora), r.asistio?'Sí':'No']);
   dlCSV([h, ...rows], `supervisor-historial-${mes}.csv`);
+}
+
+function downloadGeneralExcel() {
+  const empleados = window.allEmployeesData || [];
+  if (empleados.length === 0) {
+    alert('No hay datos para generar el reporte general.');
+    return;
+  }
+
+  const date = new Date();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  const filename = `ReporteGeneral_${month}_${year}.xlsx`;
+
+  const excelData = empleados.map((emp, index) => {
+    const nombreEmp = emp.nombre || emp.empleado || 'Sin Nombre';
+    return {
+      'No.': index + 1,
+      'CEDULA': emp.cedula || '',
+      'APELLIDOS Y NOMBRES': nombreEmp.toUpperCase(),
+      'Almuerzo Completo': emp.completos || 0,
+      'Almuerzo solo segundo': emp.segundos || 0,
+      'EXTRAS': emp.extras || 0,
+      'costo almuerzo completo 3,50': 3.50,
+      'costo almuerzzo medio 3,00': 3.00,
+      'SUBSIDIO POR COMIDA C': 2.00,
+      'SUBSIDIO POR COMIDA S': 2.00,
+      'COSTO POR ALMUERZO': emp.total_consumo || 0,
+      'TOTAL USD SUBSIDIO': emp.total_subsidio || 0,
+      'DESCUENTO': emp.total_descuento || 0,
+      'OBSERVACIONES': emp.observacion || 'AS',
+      'CCOS': emp.ccos || '',
+      'DEPARTAMENTO': emp.departamento || ''
+    };
+  });
+
+  const worksheet = XLSX.utils.json_to_sheet(excelData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Resumen Nomina');
+  XLSX.writeFile(workbook, filename);
 }
 
 function dlCSV(rows, name) {
@@ -1015,24 +1093,58 @@ function showDetailModal(empleado, counts) {
   `;
   
   window.currentDetailEmployee = empleado;
+  window.currentDetailData = counts;
   document.getElementById('modal-content').innerHTML = contentHTML;
   modal.classList.add('active');
 }
 
-async function downloadDetailPDF() {
-  const modal = document.querySelector('.modal-card');
-  if (!modal) return;
-  const filename = `reporte-${(window.currentDetailEmployee || 'empleado').replace(/\s+/g,'_').toLowerCase()}.pdf`;
-  const canvas = await html2canvas(modal, { scale: 2, backgroundColor: '#ffffff' });
-  const imgData = canvas.toDataURL('image/png');
-  const pdf = new window.jspdf.jsPDF('p', 'pt', 'a4');
-  const pageWidth = pdf.internal.pageSize.getWidth();
-  const pageHeight = pdf.internal.pageSize.getHeight();
-  const imgWidth = pageWidth - 40;
-  const imgHeight = canvas.height * imgWidth / canvas.width;
-  let position = 20;
-  pdf.addImage(imgData, 'PNG', 20, position, imgWidth, imgHeight);
-  pdf.save(filename);
+async function downloadDetailExcel() {
+  const empName = window.currentDetailEmployee;
+  const emp = window.currentDetailData;
+  if (!empName || !emp) {
+    alert('No hay datos del empleado para descargar.');
+    return;
+  }
+
+  const rawName = typeof empName === 'string' ? empName : 'Empleado';
+  const cleanName = rawName.split(' ')
+    .filter(Boolean)
+    .map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
+    .join('');
+
+  const date = new Date();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const year = date.getFullYear();
+  const filename = `${cleanName}_${month}_${year}.xlsx`;
+
+  const completePrice = 3.50;
+  const secondPrice = 3.00;
+  const totalExtra = emp.extras?.reduce((sum, value) => sum + Number(value || 0), 0) || 0;
+  const totalConsumo = emp.total_consumo || ((emp.completo || 0) * completePrice + (emp.segundo || 0) * secondPrice + totalExtra);
+
+  const rowData = [{
+    'No.': 1,
+    'CEDULA': emp.cedula || 'Sin registro',
+    'APELLIDOS Y NOMBRES': rawName.toUpperCase(),
+    'Almuerzo Completo': emp.completo || 0,
+    'Almuerzo solo segundo': emp.segundo || 0,
+    'EXTRAS': totalExtra,
+    'costo almuerzo completo 3,50': completePrice,
+    'costo almuerzzo medio 3,00': secondPrice,
+    'SUBSIDIO POR COMIDA C': 2.00,
+    'SUBSIDIO POR COMIDA S': 2.00,
+    'COSTO POR ALMUERZO': totalConsumo,
+    'TOTAL USD SUBSIDIO': emp.total_subsidio || 0,
+    'DESCUENTO': emp.total_descuento || 0,
+    'OBSERVACIONES': emp.observacion || 'AS',
+    'CCOS': emp.ccos || '',
+    'DEPARTAMENTO': emp.departamento || ''
+  }];
+
+  const worksheet = XLSX.utils.json_to_sheet(rowData);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, 'Detalle Empleado');
+  XLSX.writeFile(workbook, filename);
 }
 
 function closeDetailModal() {

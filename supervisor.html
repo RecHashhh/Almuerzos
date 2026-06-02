@@ -437,13 +437,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
   cargarHoy();
 
-  // Countdown + auto-refresh (hoy tab)
+  function refreshCurrentTab() {
+    if (activeTab === 'hoy') cargarHoy();
+    else if (activeTab === 'asistencia') cargarAsistencia();
+    else if (activeTab === 'frecuencia') cargarFrecuencia();
+    else if (activeTab === 'historial') cargarHistorial();
+  }
+
+  // Countdown + auto-refresh for the active tab
   setInterval(() => {
     cdVal--;
     document.getElementById('countdown-bar').textContent = cdVal + 's';
     if (cdVal <= 0) {
       cdVal = CONFIG.refreshInterval / 1000;
-      cargarHoy(); // refresh current tab silently
+      refreshCurrentTab();
     }
   }, 1000);
 });

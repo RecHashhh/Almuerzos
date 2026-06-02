@@ -232,11 +232,25 @@ document.addEventListener('DOMContentLoaded', () => {
   setInterval(() => {
     cdVal--;
     document.getElementById('countdown').textContent = cdVal + 's';
-    if (cdVal <= 0) { cdVal = CONFIG.refreshInterval/1000; cargar(); }
+    if (cdVal <= 0) { cdVal = CONFIG.refreshInterval/1000; refreshCurrentTab(); }
   }, 1000);
 });
 
 function logout() { clearSession(); window.location.href = 'login.html'; }
+
+function refreshCurrentTab() {
+  if (activeTab === 'todos') {
+    cargar();
+  } else if (activeTab === 'ahi') {
+    cargar();
+  } else if (activeTab === 'llevar') {
+    cargar();
+  } else if (activeTab === 'pendiente') {
+    cargar();
+  } else {
+    cargar();
+  }
+}
 
 function switchTab(tab, el) {
   activeTab = tab;
